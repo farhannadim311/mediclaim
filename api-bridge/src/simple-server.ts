@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import * as pino from "pino";
 import { SimpleAPIService } from "./services/simple-api-service.js";
+import { createAuthRouter } from "./routes/auth.js";
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +23,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:5175",
+      "http://localhost:5176",
       ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : []),
     ],
     credentials: true,
@@ -55,6 +57,9 @@ app.get("/health", (req, res) => {
     service: "claim-verifier-simple-api-bridge",
   });
 });
+
+// Auth endpoints
+app.use("/api/auth", createAuthRouter({ logger }));
 
 // Wallet endpoints
 app.post("/api/wallet/connect", async (req, res) => {

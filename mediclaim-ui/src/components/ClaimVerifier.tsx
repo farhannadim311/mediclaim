@@ -288,7 +288,7 @@ const ClaimVerifier: React.FC<ClaimVerifierProps> = ({ walletAddress }) => {
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1 border-white/20 text-white hover:bg-white/10"
+                    className="flex-1 border-gray-600 text-black hover:bg-gray-700 hover:text-white"
                     onClick={() => (window.location.href = '/dashboard')}
                   >
                     View Dashboard
@@ -512,7 +512,7 @@ const ClaimVerifier: React.FC<ClaimVerifierProps> = ({ walletAddress }) => {
                       type="button"
                       onClick={generateSampleData}
                       variant="outline"
-                      className="flex-1 border-white/20 text-white hover:bg-white/10"
+                      className="flex-1 border-gray-600 text-black hover:bg-gray-700 hover:text-white"
                     >
                       <Zap className="mr-2 h-4 w-4" />
                       Generate Sample

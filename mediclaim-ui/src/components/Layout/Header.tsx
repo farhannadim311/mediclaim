@@ -44,72 +44,67 @@ export const Header: React.FC = () => {
   };
 
   return (
-  <>
-    <header
-      data-testid="header"
-      className="bg-black/20 max-w-[1100px] mx-auto backdrop-blur-md border-b border-white/10 flex md:items-center justify-between p-3 z-50 flex flex-col md:flex-row gap-5 md:gap-0"
-    >
-      <Link to="/">
-        <DawnLogo />
-      </Link>
+    <>
+      <header
+        data-testid="header"
+        className="bg-black/20 max-w-[1100px] mx-auto backdrop-blur-md border-b border-white/10 flex md:items-center justify-between p-3 z-50 flex flex-col md:flex-row gap-5 md:gap-0"
+      >
+        <Link to="/">
+          <DawnLogo />
+        </Link>
 
-      <div className="flex items-center gap-2 px-10">
-        {walletInfo ? (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-lg px-3 py-2">
-              <Wallet className="w-4 h-4 text-green-400" />
-              <span className="text-white text-sm font-medium">
-                {`${walletInfo.coinPublicKey.slice(0, 6)}...${walletInfo.coinPublicKey.slice(-4)}`}
-              </span>
+        <div className="flex items-center gap-2 px-10">
+          {walletInfo ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-lg px-3 py-2">
+                <Wallet className="w-4 h-4 text-green-400" />
+                <span className="text-white text-sm font-medium">
+                  {`${walletInfo.coinPublicKey.slice(0, 6)}...${walletInfo.coinPublicKey.slice(-4)}`}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-400/50 text-red-400 hover:bg-foreground hover:text-red-400"
+                onClick={handleDisconnect}
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
+          ) : (
             <Button
               variant="outline"
-              size="sm"
-              className="border-red-400/50 text-red-400 hover:bg-foreground hover:text-red-400"
-              onClick={handleDisconnect}
+              className="bg-white text-black hover:bg-white/90"
+              onClick={() => {
+                void api.connect();
+              }}
             >
-              <LogOut className="w-4 h-4" />
+              <Wallet className="w-4 h-4 mr-2" />
+              Connect Wallet
             </Button>
-          </div>
-        ) : (
+          )}
+
+          <Button className="bg-orange-500 text-black hover:bg-orange-400" onClick={() => navigate('/claims')}>
+            Verify Claims
+          </Button>
+
           <Button
             variant="outline"
-            className="bg-white text-black hover:bg-white/90"
-            onClick={() => {
-              void api.connect();
-            }}
+            className="border-gray-600 text-black hover:bg-gray-700 hover:text-white"
+            onClick={() => navigate('/attestation')}
           >
-            <Wallet className="w-4 h-4 mr-2" />
-            Connect Wallet
+            Get Attestation
           </Button>
-        )}
-        
-        <Button
-          className="bg-orange-500 text-black hover:bg-orange-400"
-          onClick={() => navigate('/claims')}
-        >
-          Verify Claims
-        </Button>
-        
-        <Button
-          variant="outline"
-          className="border-white/20 text-white hover:bg-white/10"
-          onClick={() => navigate('/attestation')}
-        >
-          Get Attestation
-        </Button>
-        
-        <Button
-          variant="outline"
-          className="border-white/20 text-white hover:bg-white/10"
-          onClick={() => navigate('/policies')}
-        >
-          Policies
-        </Button>
-      </div>
 
-    </header>
-  
+          <Button
+            variant="outline"
+            className="border-gray-600 text-black hover:bg-gray-700 hover:text-white"
+            onClick={() => navigate('/policies')}
+          >
+            Policies
+          </Button>
+        </div>
+      </header>
     </>
   );
 };

@@ -83,7 +83,7 @@ const Landing: React.FC = () => {
             <Button
               size="lg"
               variant="outline"
-              className="border-2 border-white/20 text-white hover:bg-white/10 px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-300 backdrop-blur-sm"
+              className="border-2 border-gray-600 text-black hover:bg-gray-700 hover:text-white px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-300 backdrop-blur-sm"
               onClick={() => {
                 document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
               }}
@@ -209,7 +209,7 @@ const Landing: React.FC = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-2 border-white/20 text-white hover:bg-white/10 px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-300 backdrop-blur-sm"
+                  className="border-2 border-gray-600 text-black hover:bg-gray-700 hover:text-white px-8 py-4 text-lg font-semibold rounded-xl transition-all duration-300 backdrop-blur-sm"
                   onClick={() => navigate('/dashboard')}
                 >
                   View Dashboard

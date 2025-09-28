@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { claimAPI } from '../lib/claim-api';
-import { Wallet, Shield, Key, CheckCircle, AlertCircle, ArrowRight, Copy, LogOut, Loader2 } from 'lucide-react';
+import { laceWalletService } from '../lib/lace-wallet';
+import { Wallet, Shield, Key, CheckCircle, AlertCircle, ArrowRight, Copy, LogOut, Loader2, Zap } from 'lucide-react';
 
 interface WalletConnectProps {
   onConnect: (address: string) => void;
@@ -25,14 +26,48 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showSeedInput, setShowSeedInput] = useState(false);
+  const [laceAvailable, setLaceAvailable] = useState(false);
+  const [connectingLace, setConnectingLace] = useState(false);
 
   // Sample wallet seed for demo
   const DEMO_SEED = 'e79a51ccd0a7360d78dc3cb7741033156ed49d1f25b0f775511e063303acb858';
   const DEMO_ADDRESS = 'mn_shield-addr_test1vdzsujwh7vlmyg4yyt8cep9ljqnq27kmn83kq7mnj4p29d9r8ggqxq';
 
+  // Check for Lace wallet availability on component mount
+  useEffect(() => {
+    setLaceAvailable(laceWalletService.isAvailable());
+  }, []);
+
   const validateSeed = (seed: string): boolean => {
     const cleanSeed = seed.trim().replace(/^0x/, '');
     return /^[0-9a-fA-F]{64}$/.test(cleanSeed);
+  };
+
+  const handleConnectLace = async () => {
+    setConnectingLace(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      // Connect to Lace wallet
+      const connection = await laceWalletService.connect();
+
+      // Authenticate with API bridge
+      const session = await laceWalletService.authenticate('http://localhost:3001');
+
+      // Store session in claim API
+      await claimAPI.authenticateWithLace(connection.address, session.token, session.expiresAt);
+
+      setSuccess(`Lace wallet connected! Address: ${connection.address}`);
+      setTimeout(() => {
+        onConnect(connection.address);
+      }, 1000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to connect Lace wallet';
+      setError(errorMessage);
+    } finally {
+      setConnectingLace(false);
+    }
   };
 
   const handleConnect = async () => {
@@ -147,12 +182,14 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
             <CardContent className="pt-8 pb-8">
               <div className="space-y-6">
                 <div className="flex items-center justify-between p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    <div>
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse flex-shrink-0"></div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm text-green-400 font-medium">Connected Wallet</p>
-                      <p className="text-green-300 font-mono text-sm">
-                        {walletAddress.slice(0, 20)}...{walletAddress.slice(-10)}
+                      <p className="text-green-300 font-mono text-sm truncate">
+                        {walletAddress.length > 30
+                          ? `${walletAddress.slice(0, 12)}...${walletAddress.slice(-8)}`
+                          : walletAddress}
                       </p>
                     </div>
                   </div>
@@ -160,7 +197,7 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
                     variant="ghost"
                     size="sm"
                     onClick={() => copyToClipboard(walletAddress)}
-                    className="text-green-400 hover:text-green-300"
+                    className="text-green-400 hover:text-green-300 flex-shrink-0"
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -223,6 +260,32 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
           <CardContent className="space-y-6">
             {!showSeedInput ? (
               <div className="space-y-4">
+                {laceAvailable && (
+                  <>
+                    <Button
+                      onClick={handleConnectLace}
+                      disabled={connectingLace}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3 disabled:opacity-50"
+                    >
+                      {connectingLace ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="mr-2 h-4 w-4" />
+                          Connect Lace Wallet
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="text-center">
+                      <span className="text-gray-400 text-sm">or</span>
+                    </div>
+                  </>
+                )}
+
                 <Button
                   onClick={handleGenerateWallet}
                   disabled={isConnecting}
@@ -248,7 +311,7 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
                 <Button
                   onClick={() => setShowSeedInput(true)}
                   variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10 py-3"
+                  className="w-full border-gray-600 text-black hover:bg-gray-700 hover:text-white py-3"
                 >
                   Connect Existing Wallet
                 </Button>
@@ -306,7 +369,7 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
                 <Button
                   onClick={() => setShowSeedInput(false)}
                   variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10"
+                  className="w-full border-gray-600 text-black hover:bg-gray-700 hover:text-white"
                 >
                   Back
                 </Button>

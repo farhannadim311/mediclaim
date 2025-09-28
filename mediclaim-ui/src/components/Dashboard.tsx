@@ -333,7 +333,7 @@ const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
                     className={
                       statusFilter === status
                         ? 'bg-blue-600 text-white'
-                        : 'border-white/20 text-white hover:bg-white/10'
+                        : 'border-gray-600 text-black hover:bg-gray-700 hover:text-white'
                     }
                   >
                     {status === 'all' ? 'All' : status}
@@ -428,7 +428,11 @@ const Dashboard: React.FC<DashboardProps> = ({ walletAddress }) => {
 
                       {/* Actions */}
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-gray-600 text-black hover:bg-gray-700 hover:text-white"
+                        >
                           <Eye className="mr-1 h-4 w-4" />
                           View
                         </Button>
