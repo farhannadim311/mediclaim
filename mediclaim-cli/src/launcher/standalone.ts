@@ -36,9 +36,7 @@ function resolveComposeFile(): { dir: string; file: string } {
     }
   }
 
-  throw new Error(
-    'No compose file found. Looked for:\n' + candidates.map((p) => `  - ${p}`).join('\n'),
-  );
+  throw new Error('No compose file found. Looked for:\n' + candidates.map((p) => `  - ${p}`).join('\n'));
 }
 
 async function main() {
@@ -54,10 +52,7 @@ async function main() {
   // Spin up the stack and wait for key services to be ready
   const dockerEnv = new DockerComposeEnvironment(dir, [file])
     .withWaitStrategy('claim-verifier-api', Wait.forLogMessage('ZK Claim Verifier API started', 1))
-    .withWaitStrategy(
-      'attestation-service',
-      Wait.forLogMessage('ZK Claim Verifier Attestation Service listening', 1),
-    );
+    .withWaitStrategy('attestation-service', Wait.forLogMessage('ZK Claim Verifier Attestation Service listening', 1));
 
   await run(config, logger, dockerEnv);
 }

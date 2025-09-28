@@ -20,6 +20,7 @@ Updated Dawn CLI that implements the complete end-to-end flow for posting censor
 ### Prerequisites
 
 Ensure the attestation service is running at `http://localhost:8787`. The service should provide:
+
 - `POST /verify` - Send email verification code
 - `POST /attestate` - Get signed attestation after code verification
 

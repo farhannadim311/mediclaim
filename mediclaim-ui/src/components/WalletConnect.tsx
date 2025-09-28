@@ -5,7 +5,7 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
 import { claimAPI } from '../lib/claim-api';
-import { Wallet, Shield, Key, CheckCircle, AlertCircle, ArrowRight, Copy, LogOut } from 'lucide-react';
+import { Wallet, Shield, Key, CheckCircle, AlertCircle, ArrowRight, Copy, LogOut, Loader2 } from 'lucide-react';
 
 interface WalletConnectProps {
   onConnect: (address: string) => void;
@@ -69,17 +69,49 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
   const handleGenerateWallet = async () => {
     setIsConnecting(true);
     setError('');
+    setSuccess('');
 
     try {
+      // First check if API bridge is accessible
+      console.log('Checking API bridge health...');
+      await claimAPI.checkHealth();
+      console.log('API bridge is healthy');
+
       // Generate a real wallet using the API
+      console.log('Calling claimAPI.generateWallet()...');
       const walletConnection = await claimAPI.generateWallet();
+      console.log('Wallet generated successfully:', walletConnection);
       setSeedInput(walletConnection.seed);
-      setSuccess('Real wallet generated! Click Connect Wallet to proceed.');
+      setSuccess('Real wallet generated successfully!');
+      setTimeout(() => {
+        onConnect(walletConnection.address);
+      }, 1000);
     } catch (err) {
-      setError('Failed to generate wallet. Please try again.');
+      console.error('Failed to generate wallet:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate wallet';
+
+      // Check if it's an API bridge connectivity issue
+      if (errorMessage.includes('API bridge is not accessible') || errorMessage.includes('fetch')) {
+        setError('Cannot connect to API bridge. Using demo wallet instead.');
+      } else {
+        setError(`API Error: ${errorMessage}. Using demo wallet instead.`);
+      }
+
       // Fallback to demo seed
+      console.log('Falling back to demo seed');
       setSeedInput(DEMO_SEED);
-      setSuccess('Demo wallet seed generated! Click Connect Wallet to proceed.');
+      setSuccess('Demo wallet generated! Connecting automatically...');
+
+      // Auto-connect with demo seed after a short delay
+      setTimeout(async () => {
+        try {
+          const walletConnection = await claimAPI.connectWallet(DEMO_SEED);
+          onConnect(walletConnection.address);
+        } catch (connectErr) {
+          console.error('Failed to connect with demo seed:', connectErr);
+          setError('Failed to connect with demo wallet. Please try again.');
+        }
+      }, 1500);
     } finally {
       setIsConnecting(false);
     }
@@ -193,10 +225,20 @@ const WalletConnect: React.FC<WalletConnectProps> = ({
               <div className="space-y-4">
                 <Button
                   onClick={handleGenerateWallet}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3"
+                  disabled={isConnecting}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 disabled:opacity-50"
                 >
-                  Generate Demo Wallet
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      Generate Demo Wallet
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
 
                 <div className="text-center">
