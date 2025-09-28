@@ -65,24 +65,24 @@ witness VERIFY_CLAIM_SIGNATURE(
 // Validates claim amount against policy limits
 witness VERIFY_CLAIM_AMOUNT(
   claimType: ClaimType,
-  amount: Opaque<"uint64">
+  amount: Uint<64>
 ): Boolean;
 
 // Validates service date is within acceptable range
 witness VERIFY_SERVICE_DATE(
-  serviceDate: Opaque<"uint32">,
+  serviceDate: Uint<32>,
   currentTimestamp: Uint<32>
 ): Boolean;
 
 // Checks if provider is authorized for this claim type
 witness VERIFY_PROVIDER_AUTHORIZATION(
-  providerId: Opaque<"string">,
+  providerId: Bytes<32>,
   claimType: ClaimType
 ): Boolean;
 
 // Checks if patient is eligible for this claim type
 witness VERIFY_PATIENT_ELIGIBILITY(
-  patientId: Opaque<"string">,
+  patientId: Bytes<32>,
   claimType: ClaimType
 ): Boolean;
 
