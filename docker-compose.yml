@@ -1,0 +1,38 @@
+services:
+  integration-deps:
+    image: busybox
+    depends_on:
+      - mailhog
+      - proof-server
+      - attestation
+
+  proof-server:
+    image: "midnightnetwork/proof-server:4.0.0"
+    command: ["midnight-proof-server --network testnet"]
+    restart: on-failure
+    ports:
+      - "6300:6300"
+    environment:
+      RUST_BACKTRACE: "full"
+
+  attestation:
+    build:
+      context: ./attestation
+    restart: on-failure
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: "8787"
+      SMTP_HOST: "mailhog"
+      SMTP_PORT: "1025"
+      ATTESTER_SK_HEX: ${ATTESTER_SK_HEX}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      - mailhog
+
+  mailhog:
+    image: "mailhog/mailhog:latest"
+    restart: always
+    ports:
+      - "8025:8025"
+      - "1025:1025"

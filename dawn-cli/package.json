@@ -1,0 +1,25 @@
+{
+  "name": "claim-verifier-cli",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "claim-verifier-api": "file:../api"
+  },
+  "scripts": {
+    "build": "npm --prefix ../api run build && rm -rf dist && tsc --project tsconfig.build.json && mkdir -p dist/contract/src/managed && (cp -R ../contract/src/managed/claim-verifier dist/contract/src/managed/ || echo 'Contract managed directory not found - skipping copy')",
+    "ci": "npm run typecheck && npm run lint && npm run build",
+    "lint": "eslint src",
+    "prepack": "npm run build",
+    "standalone": "npm run build && docker compose -f ../docker-compose.yml pull && node dist/launcher/standalone.js",
+    "testnet-remote": "node --experimental-specifier-resolution=node --loader ts-node/esm src/launcher/testnet-remote.ts",
+    "testnet-remote-ps": "node --experimental-specifier-resolution=node dist/launcher/testnet-remote-start-proof-server.js",
+    "testnet-local": "node --experimental-specifier-resolution=node dist/launcher/testnet-local.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^24.0.10"
+  }
+}

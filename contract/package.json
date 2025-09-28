@@ -1,0 +1,30 @@
+
+{
+  "name": "claim-verifier-contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --project tsconfig.build.json --noEmit"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "^0.8.1",
+    "@midnight-ntwrk/midnight-js-types": "^2.0.2",
+    "@midnight-ntwrk/midnight-js-utils": "^2.0.2",
+    "circomlibjs": "^0.1.7",
+    "node-fetch": "^3.3.2",
+    "pino": "^9.9.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/circomlibjs": "^0.1.6",
+    "@types/node": "^20.19.13",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

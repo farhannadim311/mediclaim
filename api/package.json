@@ -1,0 +1,30 @@
+{
+  "name": "claim-verifier-api",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "ci": "npm run typecheck && npm run lint && npm run build",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "^0.8.1",
+    "@midnight-ntwrk/midnight-js-contracts": "^0.1.0",
+    "@midnight-ntwrk/midnight-js-types": "^0.1.0",
+    "pino": "^9.0.0",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.3"
+  }
+}

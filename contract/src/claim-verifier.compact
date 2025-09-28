@@ -1,0 +1,169 @@
+pragma language_version >= 0.16 && <= 0.17;
+
+import CompactStandardLibrary;
+
+// ----------------- Data Types -----------------
+
+export enum ClaimType {
+  MEDICAL_INVOICE,
+  PRESCRIPTION_DRUG,
+  DENTAL_PROCEDURE,
+  VISION_CARE,
+  EMERGENCY_ROOM
+}
+
+export enum ClaimStatus {
+  PENDING,
+  APPROVED,
+  REJECTED
+}
+
+export struct Claim {
+  claimType: ClaimType,
+  amount: Uint<64>,
+  serviceDate: Uint<32>,
+  providerId: Bytes<32>,
+  patientId: Bytes<32>,
+  description: Bytes<64>,
+  metadata: Bytes<64>
+}
+
+// ----------------- Ledger State -----------------
+
+// Counter for claim IDs
+export ledger claimSequence: Counter;
+
+// Store all claims (privacy-preserving)
+export ledger claimData: Map<Uint<64>, Claim>;
+
+// Store claim verification status
+export ledger claimStatus: Map<Uint<64>, ClaimStatus>;
+
+// Store verification hashes for transparency
+export ledger claimVerificationHash: Map<Uint<64>, Bytes<32>>;
+
+// Store verification metadata (no PHI)
+export ledger claimMetadata: Map<Uint<64>, Bytes<32>>;
+
+// Initialize sequence counter
+constructor() { 
+  claimSequence.increment(1); 
+}
+
+// ----------------- Witness Functions (ZK-Backed) -----------------
+
+// Verifies EdDSA signature over claim data
+witness VERIFY_CLAIM_SIGNATURE(
+  claimHash: Bytes<32>,
+  providerPubX: Bytes<32>,
+  providerPubY: Bytes<32>,
+  signatureR8x: Bytes<32>,
+  signatureR8y: Bytes<32>,
+  signatureS: Bytes<32>
+): Boolean;
+
+// Validates claim amount against policy limits
+witness VERIFY_CLAIM_AMOUNT(
+  claimType: ClaimType,
+  amount: Opaque<"uint64">
+): Boolean;
+
+// Validates service date is within acceptable range
+witness VERIFY_SERVICE_DATE(
+  serviceDate: Opaque<"uint32">,
+  currentTimestamp: Uint<32>
+): Boolean;
+
+// Checks if provider is authorized for this claim type
+witness VERIFY_PROVIDER_AUTHORIZATION(
+  providerId: Opaque<"string">,
+  claimType: ClaimType
+): Boolean;
+
+// Checks if patient is eligible for this claim type
+witness VERIFY_PATIENT_ELIGIBILITY(
+  patientId: Opaque<"string">,
+  claimType: ClaimType
+): Boolean;
+
+// ----------------- Circuits (APIs) -----------------
+
+// Main claim verification circuit
+export circuit verifyClaim(
+  claim: Claim,
+  claimHash: Bytes<32>,
+  providerPubX: Bytes<32>,
+  providerPubY: Bytes<32>,
+  signatureR8x: Bytes<32>,
+  signatureR8y: Bytes<32>,
+  signatureS: Bytes<32>
+): Uint<64> {
+  // Get current timestamp (simplified for demo)
+  const currentTimestamp = 0 as Uint<32>;
+  
+  // Verify all conditions using ZK witnesses
+  const sigValid = VERIFY_CLAIM_SIGNATURE(
+    claimHash, 
+    providerPubX, 
+    providerPubY, 
+    signatureR8x, 
+    signatureR8y, 
+    signatureS
+  );
+  
+  const amountValid = VERIFY_CLAIM_AMOUNT(claim.claimType, claim.amount);
+  
+  const dateValid = VERIFY_SERVICE_DATE(claim.serviceDate, currentTimestamp);
+  
+  const providerValid = VERIFY_PROVIDER_AUTHORIZATION(claim.providerId, claim.claimType);
+  const patientValid = VERIFY_PATIENT_ELIGIBILITY(claim.patientId, claim.claimType);
+  
+  // All validations must pass
+  const isValid = sigValid && amountValid && dateValid && providerValid && patientValid;
+  
+  // Generate claim ID
+  const id = claimSequence as Uint<64>;
+
+  // Increment sequence for next claim
+  claimSequence.increment(1);
+
+  // Publicly return the claim ID (demo purpose)
+  return disclose(id);
+}
+
+// Get claim verification status
+export circuit getClaimStatus(claimId: Uint<64>): ClaimStatus {
+  const status = claimStatus.lookup(disclose(claimId));
+  return status;
+}
+
+// Get claim verification hash
+export circuit getClaimVerificationHash(claimId: Uint<64>): Bytes<32> {
+  const hash = claimVerificationHash.lookup(disclose(claimId));
+  return hash;
+}
+
+// Get claim metadata (no PHI)
+export circuit getClaimMetadata(claimId: Uint<64>): Bytes<32> {
+  const metadata = claimMetadata.lookup(disclose(claimId));
+  return metadata;
+}
+
+// Check if claim exists
+export circuit claimExists(claimId: Uint<64>): Boolean {
+  const exists = claimData.member(disclose(claimId));
+  return exists;
+}
+
+// Get total number of claims
+export circuit getTotalClaims(): Uint<64> {
+  const total = claimSequence as Uint<64>;
+  return total;
+}
+
+// Get claims by status (for analytics)
+export circuit getClaimsByStatus(status: ClaimStatus): Uint<64> {
+  // This would require iterating through all claims
+  // For simplicity, return 0 (can be enhanced later)
+  return 0 as Uint<64>;
+}

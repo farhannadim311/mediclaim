@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+      "target": "ES2022",
+      "lib": ["ES2022"],
+      "module": "NodeNext",
+      "moduleResolution": "NodeNext",
+  
+      "strict": true,
+      "noImplicitAny": true,
+      "noImplicitReturns": true,
+      "noImplicitThis": true,
+      "exactOptionalPropertyTypes": true,
+      "forceConsistentCasingInFileNames": true,
+      "skipLibCheck": true,
+      "preserveWatchOutput": true,
+  
+      "verbatimModuleSyntax": true,
+      "isolatedModules": true,
+      "resolveJsonModule": true,
+      "esModuleInterop": true,
+      "types": ["node"],
+      "sourceMap": true
+    }
+  }
+  

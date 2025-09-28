@@ -1,0 +1,191 @@
+{
+  "circuits": [
+    {
+      "name": "postReportWithAttestation",
+      "pure": false,
+      "arguments": [
+        {
+          "name": "board",
+          "type": {
+            "type-name": "Enum",
+            "name": "Board",
+            "elements": [
+              "GOV_POLITICS",
+              "HEALTHCARE",
+              "INFRA",
+              "EDUCATION",
+              "MEDIA",
+              "CORPORATE",
+              "LEGAL",
+              "ENVIRONMENT",
+              "CIVIL",
+              "CITIZEN"
+            ]
+          }
+        },
+        {
+          "name": "title",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        },
+        {
+          "name": "shortDescription",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        },
+        {
+          "name": "metadata",
+          "type": {
+            "type-name": "Opaque",
+            "tsType": "string"
+          }
+        },
+        {
+          "name": "domainHash",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "boardsMask",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        },
+        {
+          "name": "expiryDays",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
+        {
+          "name": "sigR8x",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "sigR8y",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "sigS",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "todayDays",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Uint",
+        "maxval": 18446744073709551615
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "VERIFY_GRANTS_SIGNATURE",
+      "arguments": [
+        {
+          "name": "domainHash",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "boardsMask",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        },
+        {
+          "name": "expiryDays",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 4294967295
+          }
+        },
+        {
+          "name": "R8x",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "R8y",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "S",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result type": {
+        "type-name": "Boolean"
+      }
+    },
+    {
+      "name": "IS_BOARD_GRANTED",
+      "arguments": [
+        {
+          "name": "boardsMask",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        },
+        {
+          "name": "board",
+          "type": {
+            "type-name": "Enum",
+            "name": "Board",
+            "elements": [
+              "GOV_POLITICS",
+              "HEALTHCARE",
+              "INFRA",
+              "EDUCATION",
+              "MEDIA",
+              "CORPORATE",
+              "LEGAL",
+              "ENVIRONMENT",
+              "CIVIL",
+              "CITIZEN"
+            ]
+          }
+        }
+      ],
+      "result type": {
+        "type-name": "Boolean"
+      }
+    }
+  ],
+  "contracts": [
+  ]
+}
