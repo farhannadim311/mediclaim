@@ -1,13 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Alert, AlertDescription } from './ui/alert';
-import { Mail, Shield, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { claimAPI } from '../lib/claim-api';
+import {
+  Shield,
+  CheckCircle,
+  XCircle,
+  Clock,
+  DollarSign,
+  User,
+  Building,
+  Calendar,
+  FileText,
+  Loader2,
+  Zap,
+  AlertCircle,
+} from 'lucide-react';
 
-interface ClaimSubmissionRequest {
+interface ClaimVerifierProps {
+  walletAddress: string;
+}
+
+interface ClaimFormData {
   claimType: number;
   amount: string;
   serviceDate: string;
@@ -15,72 +33,40 @@ interface ClaimSubmissionRequest {
   patientId: string;
   description: string;
   metadata: string;
-  providerSignature: {
-    r8x: string;
-    r8y: string;
-    s: string;
-  };
-  providerPublicKey: {
-    x: string;
-    y: string;
-  };
 }
 
-interface ClaimVerificationResponse {
+interface VerificationResult {
   claimId: string;
-  status: string;
+  status: 'VERIFIED' | 'REJECTED' | 'PENDING';
   verificationHash: string;
   timestamp: number;
   message: string;
 }
 
-interface AttestationResponse {
-  domainHash: string;
-  policyMask: number;
-  expiryDays: number;
-  sigR8x: string;
-  sigR8y: string;
-  sigS: string;
-  policiesGranted: number[];
-}
-
-interface EmailVerificationState {
-  email: string;
-  code: string;
-  isVerified: boolean;
-  isVerifying: boolean;
-  isSendingCode: boolean;
-  error: string | null;
-}
-
 const CLAIM_TYPES = [
-  { value: 0, label: 'Medical Invoice' },
-  { value: 1, label: 'Prescription Drug' },
-  { value: 2, label: 'Dental Procedure' },
-  { value: 3, label: 'Vision Care' },
-  { value: 4, label: 'Emergency Room' }
+  { value: 0, label: 'Medical Invoice', icon: '🏥' },
+  { value: 1, label: 'Prescription Drug', icon: '💊' },
+  { value: 2, label: 'Dental Procedure', icon: '🦷' },
+  { value: 3, label: 'Vision Care', icon: '👁️' },
+  { value: 4, label: 'Emergency Room', icon: '🚨' },
 ];
 
 const SAMPLE_PROVIDERS = [
-  { id: 'HOSPITAL_001', name: 'City General Hospital' },
-  { id: 'CLINIC_002', name: 'Family Health Clinic' },
-  { id: 'PHARMACY_003', name: 'MediCare Pharmacy' },
-  { id: 'DENTIST_004', name: 'Smile Dental Care' },
-  { id: 'EYE_CARE_005', name: 'Vision Plus Center' }
+  { id: 'HOSPITAL_001', name: 'City General Hospital', type: 'Hospital' },
+  { id: 'CLINIC_002', name: 'Family Health Clinic', type: 'Clinic' },
+  { id: 'PHARMACY_003', name: 'MediCare Pharmacy', type: 'Pharmacy' },
+  { id: 'DENTIST_004', name: 'Smile Dental Care', type: 'Dental' },
+  { id: 'EYE_CARE_005', name: 'Vision Plus Center', type: 'Vision' },
 ];
 
 const SAMPLE_PATIENTS = [
-  { id: 'PATIENT_001', name: 'John Doe' },
-  { id: 'PATIENT_002', name: 'Jane Smith' },
-  { id: 'PATIENT_003', name: 'Bob Johnson' }
+  { id: 'PATIENT_001', name: 'John Doe', age: 45 },
+  { id: 'PATIENT_002', name: 'Jane Smith', age: 32 },
+  { id: 'PATIENT_003', name: 'Bob Johnson', age: 58 },
 ];
 
-interface ClaimVerifierProps {
-  onBack?: () => void;
-}
-
-export const ClaimVerifier: React.FC<ClaimVerifierProps> = ({ onBack }) => {
-  const [formData, setFormData] = useState<ClaimSubmissionRequest>({
+const ClaimVerifier: React.FC<ClaimVerifierProps> = ({ walletAddress }) => {
+  const [formData, setFormData] = useState<ClaimFormData>({
     claimType: 0,
     amount: '',
     serviceDate: '',
@@ -88,127 +74,18 @@ export const ClaimVerifier: React.FC<ClaimVerifierProps> = ({ onBack }) => {
     patientId: '',
     description: '',
     metadata: '',
-    providerSignature: {
-      r8x: '',
-      r8y: '',
-      s: ''
-    },
-    providerPublicKey: {
-      x: '',
-      y: ''
-    }
   });
 
-  const [verificationResult, setVerificationResult] = useState<ClaimVerificationResponse | null>(null);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const [emailVerification, setEmailVerification] = useState<EmailVerificationState>({
-    email: '',
-    code: '',
-    isVerified: false,
-    isVerifying: false,
-    isSendingCode: false,
-    error: null
-  });
-  
-  const [attestation, setAttestation] = useState<AttestationResponse | null>(null);
-  const [currentStep, setCurrentStep] = useState<'email' | 'attestation' | 'claim'>('email');
+  const [currentStep, setCurrentStep] = useState<'form' | 'verifying' | 'result'>('form');
 
-  // Attestation service configuration
-  const ATTESTATION_SERVICE_URL = import.meta.env.VITE_ATTESTATION_SERVICE_URL || 'http://localhost:8788';
-
-  const handleInputChange = (field: string, value: any) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent as keyof ClaimSubmissionRequest],
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value
-      }));
-    }
-  };
-
-  const handleEmailVerification = async () => {
-    if (!emailVerification.email || !emailVerification.email.includes('@')) {
-      setEmailVerification(prev => ({ ...prev, error: 'Please enter a valid email address' }));
-      return;
-    }
-
-    setEmailVerification(prev => ({ ...prev, isSendingCode: true, error: null }));
-
-    try {
-      const response = await fetch(`${ATTESTATION_SERVICE_URL}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailVerification.email })
-      });
-
-      if (response.ok) {
-        setEmailVerification(prev => ({ ...prev, isSendingCode: false }));
-        setCurrentStep('attestation');
-      } else {
-        const errorData = await response.json();
-        setEmailVerification(prev => ({ 
-          ...prev, 
-          isSendingCode: false, 
-          error: errorData.error || 'Failed to send verification code' 
-        }));
-      }
-    } catch (err) {
-      setEmailVerification(prev => ({ 
-        ...prev, 
-        isSendingCode: false, 
-        error: 'Network error. Please try again.' 
-      }));
-    }
-  };
-
-  const handleAttestation = async () => {
-    if (!emailVerification.code) {
-      setEmailVerification(prev => ({ ...prev, error: 'Please enter the verification code' }));
-      return;
-    }
-
-    setEmailVerification(prev => ({ ...prev, isVerifying: true, error: null }));
-
-    try {
-      const response = await fetch(`${ATTESTATION_SERVICE_URL}/attestate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: emailVerification.email, 
-          proof: { code: emailVerification.code } 
-        })
-      });
-
-      if (response.ok) {
-        const attestationData: AttestationResponse = await response.json();
-        setAttestation(attestationData);
-        setEmailVerification(prev => ({ ...prev, isVerified: true, isVerifying: false }));
-        setCurrentStep('claim');
-      } else {
-        const errorData = await response.json();
-        setEmailVerification(prev => ({ 
-          ...prev, 
-          isVerifying: false, 
-          error: errorData.error || 'Invalid verification code' 
-        }));
-      }
-    } catch (err) {
-      setEmailVerification(prev => ({ 
-        ...prev, 
-        isVerifying: false, 
-        error: 'Network error. Please try again.' 
-      }));
-    }
+  const handleInputChange = (field: keyof ClaimFormData, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   const generateSampleData = () => {
@@ -216,460 +93,507 @@ export const ClaimVerifier: React.FC<ClaimVerifierProps> = ({ onBack }) => {
     const samplePatient = SAMPLE_PATIENTS[Math.floor(Math.random() * SAMPLE_PATIENTS.length)];
     const sampleAmount = (Math.random() * 1000 + 100).toFixed(2);
     const serviceDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
-    
+    const claimType = Math.floor(Math.random() * 5);
+
     setFormData({
-      claimType: Math.floor(Math.random() * 5),
-      amount: (parseFloat(sampleAmount) * 100).toString(), // Convert to cents
-      serviceDate: Math.floor(serviceDate.getTime() / 1000).toString(),
+      claimType,
+      amount: sampleAmount,
+      serviceDate: serviceDate.toISOString().split('T')[0],
       providerId: sampleProvider.id,
       patientId: samplePatient.id,
-      description: `Medical service for ${samplePatient.name}`,
-      metadata: 'Sample claim data',
-      providerSignature: {
-        r8x: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        r8y: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        s: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')
-      },
-      providerPublicKey: {
-        x: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        y: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')
-      }
+      description: `${CLAIM_TYPES[claimType].label} for ${samplePatient.name}`,
+      metadata: `Generated sample claim - ${sampleProvider.type}`,
     });
+
+    setError(null);
+    setVerificationResult(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate form
+    if (!formData.amount || !formData.serviceDate || !formData.providerId || !formData.patientId) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
-    setVerificationResult(null);
+    setCurrentStep('verifying');
 
     try {
-      // Convert amount to cents and serviceDate to timestamp
-      const requestData = {
-        ...formData,
-        amount: formData.amount,
-        serviceDate: parseInt(formData.serviceDate)
+      // First ensure we have a contract deployed
+      try {
+        await claimAPI.deployContract();
+      } catch {
+        // Contract might already be deployed, continue
+      }
+
+      // Use the real claim API to verify the claim
+      const claimData = {
+        claimType: formData.claimType,
+        amount: (parseFloat(formData.amount) * 100).toString(), // Convert to cents
+        serviceDate: formData.serviceDate,
+        providerId: formData.providerId,
+        patientId: formData.patientId,
+        description: formData.description,
+        metadata: formData.metadata,
       };
 
-      // In a real implementation, this would call the actual API
-      // For demo purposes, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Mock verification result
-      const result: ClaimVerificationResponse = {
-        claimId: Math.floor(Math.random() * 1000000).toString(),
-        status: Math.random() > 0.3 ? 'VERIFIED' : 'REJECTED',
-        verificationHash: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        timestamp: Math.floor(Date.now() / 1000),
-        message: Math.random() > 0.3 ? 'Claim verified successfully' : 'Claim rejected due to invalid signature'
-      };
+      const result = await claimAPI.verifyClaim(claimData);
 
       setVerificationResult(result);
+      setCurrentStep('result');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'Verification failed. Please try again.');
+      setCurrentStep('form');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <div className="flex items-center justify-center space-x-4 mb-4">
-          {onBack && (
-            <Button
-              variant="outline"
-              onClick={onBack}
-              className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
-            >
-              ← Back to Roles
-            </Button>
-          )}
-        </div>
-        <h1 className="text-3xl font-bold text-white">ZK Claim Verifier Demo</h1>
-        <p className="text-gray-400">
-          Verify insurance claims using zero-knowledge proofs without revealing private data
-        </p>
-      </div>
+  const resetForm = () => {
+    setFormData({
+      claimType: 0,
+      amount: '',
+      serviceDate: '',
+      providerId: '',
+      patientId: '',
+      description: '',
+      metadata: '',
+    });
+    setVerificationResult(null);
+    setError(null);
+    setCurrentStep('form');
+  };
 
-      {/* Step Indicator */}
-      <div className="flex justify-center mb-8">
-        <div className="flex items-center space-x-4">
-          <div className={`flex items-center ${currentStep === 'email' ? 'text-orange-400' : currentStep === 'attestation' || currentStep === 'claim' ? 'text-green-400' : 'text-gray-500'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'email' ? 'bg-orange-500' : currentStep === 'attestation' || currentStep === 'claim' ? 'bg-green-500' : 'bg-gray-600'}`}>
-              <Mail className="h-4 w-4" />
-            </div>
-            <span className="ml-2 text-sm font-medium">Email Verification</span>
-          </div>
-          <div className="w-8 h-px bg-gray-600"></div>
-          <div className={`flex items-center ${currentStep === 'attestation' ? 'text-orange-400' : currentStep === 'claim' ? 'text-green-400' : 'text-gray-500'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'attestation' ? 'bg-orange-500' : currentStep === 'claim' ? 'bg-green-500' : 'bg-gray-600'}`}>
-              <Shield className="h-4 w-4" />
-            </div>
-            <span className="ml-2 text-sm font-medium">Get Attestation</span>
-          </div>
-          <div className="w-8 h-px bg-gray-600"></div>
-          <div className={`flex items-center ${currentStep === 'claim' ? 'text-orange-400' : 'text-gray-500'}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'claim' ? 'bg-orange-500' : 'bg-gray-600'}`}>
-              <CheckCircle className="h-4 w-4" />
-            </div>
-            <span className="ml-2 text-sm font-medium">Verify Claim</span>
-          </div>
-        </div>
-      </div>
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'VERIFIED':
+        return 'text-green-400 bg-green-500/20 border-green-500/30';
+      case 'REJECTED':
+        return 'text-red-400 bg-red-500/20 border-red-500/30';
+      case 'PENDING':
+        return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
+      default:
+        return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+    }
+  };
 
-      {/* Email Verification Step */}
-      {currentStep === 'email' && (
-        <Card className="bg-gray-900 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Mail className="mr-2 h-5 w-5" />
-              Email Verification
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              Verify your email to get policy attestation for claim verification
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="email" className="text-white">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={emailVerification.email}
-                onChange={(e) => setEmailVerification(prev => ({ ...prev, email: e.target.value }))}
-                className="bg-gray-800 border-gray-600 text-white"
-                placeholder="your.email@domain.com"
-              />
-            </div>
-            {emailVerification.error && (
-              <Alert className="bg-red-900/20 border-red-500">
-                <XCircle className="h-4 w-4" />
-                <AlertDescription className="text-red-400">{emailVerification.error}</AlertDescription>
-              </Alert>
-            )}
-            <Button
-              onClick={handleEmailVerification}
-              disabled={emailVerification.isSendingCode}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {emailVerification.isSendingCode ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending Code...
-                </>
-              ) : (
-                'Send Verification Code'
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'VERIFIED':
+        return <CheckCircle className="h-5 w-5" />;
+      case 'REJECTED':
+        return <XCircle className="h-5 w-5" />;
+      case 'PENDING':
+        return <Clock className="h-5 w-5" />;
+      default:
+        return <AlertCircle className="h-5 w-5" />;
+    }
+  };
 
-      {/* Attestation Step */}
-      {currentStep === 'attestation' && (
-        <Card className="bg-gray-900 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Shield className="mr-2 h-5 w-5" />
-              Get Policy Attestation
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              Enter the verification code sent to {emailVerification.email}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="code" className="text-white">Verification Code</Label>
-              <Input
-                id="code"
-                type="text"
-                value={emailVerification.code}
-                onChange={(e) => setEmailVerification(prev => ({ ...prev, code: e.target.value }))}
-                className="bg-gray-800 border-gray-600 text-white"
-                placeholder="Enter 6-digit code"
-                maxLength={6}
-              />
+  if (currentStep === 'verifying') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <Card className="max-w-md mx-auto bg-white/5 backdrop-blur-sm border border-white/10">
+          <CardContent className="pt-12 pb-12 text-center">
+            <div className="mx-auto mb-6 w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
+              <Loader2 className="h-10 w-10 text-white animate-spin" />
             </div>
-            {emailVerification.error && (
-              <Alert className="bg-red-900/20 border-red-500">
-                <XCircle className="h-4 w-4" />
-                <AlertDescription className="text-red-400">{emailVerification.error}</AlertDescription>
-              </Alert>
-            )}
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setCurrentStep('email')}
-                variant="outline"
-                className="flex-1 bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
-              >
-                Back
-              </Button>
-              <Button
-                onClick={handleAttestation}
-                disabled={emailVerification.isVerifying}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                {emailVerification.isVerifying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  'Get Attestation'
-                )}
-              </Button>
+            <h3 className="text-2xl font-bold text-white mb-4">Verifying Claim</h3>
+            <p className="text-gray-300 mb-6">Generating zero-knowledge proof and verifying claim authenticity...</p>
+            <div className="space-y-3 text-left">
+              {[
+                'Validating claim signature',
+                'Checking policy compliance',
+                'Generating ZK proof',
+                'Submitting to contract',
+              ].map((step, index) => (
+                <div key={index} className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                  <span className="text-sm text-gray-300">{step}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
+    );
+  }
 
-      {/* Claim Verification Step */}
-      {currentStep === 'claim' && attestation && (
-        <div className="space-y-6">
-          {/* Attestation Info */}
-          <Card className="bg-green-900/20 border-green-500/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <CheckCircle className="h-5 w-5 text-green-400" />
-                <h3 className="text-lg font-semibold text-green-400">Attestation Received</h3>
+  if (currentStep === 'result' && verificationResult) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+            <CardContent className="pt-8 pb-8">
+              <div className="text-center mb-6">
+                <div
+                  className={`mx-auto mb-4 w-20 h-20 rounded-2xl flex items-center justify-center ${
+                    verificationResult.status === 'VERIFIED'
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                      : 'bg-gradient-to-r from-red-500 to-pink-500'
+                  }`}
+                >
+                  {getStatusIcon(verificationResult.status)}
+                </div>
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  {verificationResult.status === 'VERIFIED' ? 'Claim Verified!' : 'Verification Failed'}
+                </h2>
+                <p className="text-gray-300">{verificationResult.message}</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-400">Domain Hash:</span>
-                  <p className="text-white font-mono text-xs">{attestation.domainHash.slice(0, 16)}...</p>
+
+              <div className="space-y-4">
+                <div
+                  className={`flex items-center justify-center space-x-2 px-4 py-2 rounded-lg border ${getStatusColor(verificationResult.status)}`}
+                >
+                  {getStatusIcon(verificationResult.status)}
+                  <span className="font-semibold">{verificationResult.status}</span>
                 </div>
-                <div>
-                  <span className="text-gray-400">Policy Mask:</span>
-                  <p className="text-white">{attestation.policyMask}</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div className="bg-white/5 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <FileText className="h-4 w-4 text-blue-400" />
+                      <span className="text-gray-400">Claim ID</span>
+                    </div>
+                    <p className="text-white font-mono">{verificationResult.claimId}</p>
+                  </div>
+
+                  <div className="bg-white/5 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Clock className="h-4 w-4 text-purple-400" />
+                      <span className="text-gray-400">Timestamp</span>
+                    </div>
+                    <p className="text-white">{new Date(verificationResult.timestamp * 1000).toLocaleString()}</p>
+                  </div>
+
+                  <div className="bg-white/5 rounded-lg p-4 sm:col-span-2">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Shield className="h-4 w-4 text-green-400" />
+                      <span className="text-gray-400">Verification Hash</span>
+                    </div>
+                    <p className="text-white font-mono text-xs break-all">{verificationResult.verificationHash}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-400">Policies Granted:</span>
-                  <p className="text-white">{attestation.policiesGranted.join(', ')}</p>
-                </div>
-                <div>
-                  <span className="text-gray-400">Expires:</span>
-                  <p className="text-white">{new Date(attestation.expiryDays * 1000).toLocaleDateString()}</p>
+
+                <div className="flex gap-4 pt-4">
+                  <Button
+                    onClick={resetForm}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    Verify Another Claim
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-white/20 text-white hover:bg-white/10"
+                    onClick={() => (window.location.href = '/dashboard')}
+                  >
+                    View Dashboard
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Claim Submission Form */}
-        <Card className="bg-gray-900 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Submit Claim</CardTitle>
-            <CardDescription className="text-gray-400">
-              Enter claim details for ZK verification
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          {/* Privacy Notice */}
+          <Card className="bg-blue-500/10 border border-blue-500/20">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-start space-x-3">
+                <Shield className="h-5 w-5 text-blue-400 mt-1 flex-shrink-0" />
                 <div>
-                  <Label htmlFor="claimType" className="text-white">Claim Type</Label>
-                  <Select
-                    value={formData.claimType.toString()}
-                    onValueChange={(value) => handleInputChange('claimType', parseInt(value))}
-                  >
-                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CLAIM_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value.toString()}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="amount" className="text-white">Amount ($)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={(parseFloat(formData.amount) / 100).toFixed(2)}
-                    onChange={(e) => handleInputChange('amount', (parseFloat(e.target.value) * 100).toString())}
-                    className="bg-gray-800 border-gray-600 text-white"
-                    placeholder="0.00"
-                  />
+                  <h4 className="text-blue-400 font-semibold mb-1">Privacy Protected</h4>
+                  <p className="text-blue-300 text-sm">
+                    Your claim was verified using zero-knowledge proofs. No sensitive patient data, financial amounts,
+                    or provider details were revealed during verification.
+                  </p>
                 </div>
               </div>
-
-              <div>
-                <Label htmlFor="serviceDate" className="text-white">Service Date</Label>
-                <Input
-                  id="serviceDate"
-                  type="date"
-                  value={formData.serviceDate ? new Date(parseInt(formData.serviceDate) * 1000).toISOString().split('T')[0] : ''}
-                  onChange={(e) => handleInputChange('serviceDate', Math.floor(new Date(e.target.value).getTime() / 1000).toString())}
-                  className="bg-gray-800 border-gray-600 text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="providerId" className="text-white">Provider ID</Label>
-                  <Select
-                    value={formData.providerId}
-                    onValueChange={(value) => handleInputChange('providerId', value)}
-                  >
-                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SAMPLE_PROVIDERS.map((provider) => (
-                        <SelectItem key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="patientId" className="text-white">Patient ID</Label>
-                  <Select
-                    value={formData.patientId}
-                    onValueChange={(value) => handleInputChange('patientId', value)}
-                  >
-                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue placeholder="Select patient" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SAMPLE_PATIENTS.map((patient) => (
-                        <SelectItem key={patient.id} value={patient.id}>
-                          {patient.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="description" className="text-white">Description</Label>
-                <Input
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white"
-                  placeholder="Medical service description"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="metadata" className="text-white">Metadata</Label>
-                <Input
-                  id="metadata"
-                  value={formData.metadata}
-                  onChange={(e) => handleInputChange('metadata', e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white"
-                  placeholder="Additional metadata"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  onClick={generateSampleData}
-                  variant="outline"
-                  className="flex-1 bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
-                >
-                  Generate Sample Data
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {isSubmitting ? 'Verifying...' : 'Verify Claim'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Verification Result */}
-        <Card className="bg-gray-900 border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Verification Result</CardTitle>
-            <CardDescription className="text-gray-400">
-              ZK proof verification status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert className="mb-4 bg-red-900/20 border-red-500">
-                <AlertDescription className="text-red-400">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {verificationResult ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${
-                    verificationResult.status === 'VERIFIED' ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                  <span className={`font-semibold ${
-                    verificationResult.status === 'VERIFIED' ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {verificationResult.status}
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Claim ID:</span>
-                    <span className="text-white font-mono">{verificationResult.claimId}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Verification Hash:</span>
-                    <span className="text-white font-mono text-xs">
-                      {verificationResult.verificationHash.slice(0, 16)}...
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Timestamp:</span>
-                    <span className="text-white">
-                      {new Date(verificationResult.timestamp * 1000).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Message:</span>
-                    <span className="text-white">{verificationResult.message}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-gray-400 py-8">
-                Submit a claim to see verification results
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen px-4 py-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">Verify Insurance Claim</h1>
+          <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+            Submit your claim for zero-knowledge verification. Your sensitive data remains private.
+          </p>
+        </div>
+
+        {/* Connected Wallet Info */}
+        <Card className="mb-8 bg-green-500/10 border border-green-500/20">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+              <div>
+                <p className="text-green-400 font-medium">Connected Wallet</p>
+                <p className="text-green-300 font-mono text-sm">
+                  {walletAddress.slice(0, 20)}...{walletAddress.slice(-10)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Claim Form */}
+          <div className="lg:col-span-2">
+            <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <FileText className="mr-2 h-5 w-5" />
+                  Claim Details
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Enter your insurance claim information for verification
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Claim Type & Amount */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="claimType" className="text-white">
+                        Claim Type
+                      </Label>
+                      <Select
+                        value={formData.claimType.toString()}
+                        onValueChange={(value) => handleInputChange('claimType', parseInt(value))}
+                      >
+                        <SelectTrigger className="bg-gray-800 border-gray-600 text-white mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CLAIM_TYPES.map((type) => (
+                            <SelectItem key={type.value} value={type.value.toString()}>
+                              <div className="flex items-center space-x-2">
+                                <span>{type.icon}</span>
+                                <span>{type.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="amount" className="text-white flex items-center">
+                        <DollarSign className="mr-1 h-4 w-4" />
+                        Amount ($)
+                      </Label>
+                      <Input
+                        id="amount"
+                        type="number"
+                        step="0.01"
+                        value={formData.amount}
+                        onChange={(e) => handleInputChange('amount', e.target.value)}
+                        className="bg-gray-800 border-gray-600 text-white mt-2"
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Service Date */}
+                  <div>
+                    <Label htmlFor="serviceDate" className="text-white flex items-center">
+                      <Calendar className="mr-1 h-4 w-4" />
+                      Service Date
+                    </Label>
+                    <Input
+                      id="serviceDate"
+                      type="date"
+                      value={formData.serviceDate}
+                      onChange={(e) => handleInputChange('serviceDate', e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white mt-2"
+                      required
+                    />
+                  </div>
+
+                  {/* Provider & Patient */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="providerId" className="text-white flex items-center">
+                        <Building className="mr-1 h-4 w-4" />
+                        Healthcare Provider
+                      </Label>
+                      <Select
+                        value={formData.providerId}
+                        onValueChange={(value) => handleInputChange('providerId', value)}
+                      >
+                        <SelectTrigger className="bg-gray-800 border-gray-600 text-white mt-2">
+                          <SelectValue placeholder="Select provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SAMPLE_PROVIDERS.map((provider) => (
+                            <SelectItem key={provider.id} value={provider.id}>
+                              <div className="flex flex-col items-start">
+                                <span>{provider.name}</span>
+                                <span className="text-xs text-gray-400">{provider.type}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="patientId" className="text-white flex items-center">
+                        <User className="mr-1 h-4 w-4" />
+                        Patient
+                      </Label>
+                      <Select
+                        value={formData.patientId}
+                        onValueChange={(value) => handleInputChange('patientId', value)}
+                      >
+                        <SelectTrigger className="bg-gray-800 border-gray-600 text-white mt-2">
+                          <SelectValue placeholder="Select patient" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SAMPLE_PATIENTS.map((patient) => (
+                            <SelectItem key={patient.id} value={patient.id}>
+                              <div className="flex flex-col items-start">
+                                <span>{patient.name}</span>
+                                <span className="text-xs text-gray-400">Age: {patient.age}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Description & Metadata */}
+                  <div>
+                    <Label htmlFor="description" className="text-white">
+                      Description
+                    </Label>
+                    <Input
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white mt-2"
+                      placeholder="Brief description of the medical service"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="metadata" className="text-white">
+                      Additional Notes
+                    </Label>
+                    <Input
+                      id="metadata"
+                      value={formData.metadata}
+                      onChange={(e) => handleInputChange('metadata', e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white mt-2"
+                      placeholder="Any additional information"
+                    />
+                  </div>
+
+                  {error && (
+                    <Alert className="bg-red-900/20 border-red-500">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-red-400">{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-4 pt-4">
+                    <Button
+                      type="button"
+                      onClick={generateSampleData}
+                      variant="outline"
+                      className="flex-1 border-white/20 text-white hover:bg-white/10"
+                    >
+                      <Zap className="mr-2 h-4 w-4" />
+                      Generate Sample
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Verifying...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="mr-2 h-4 w-4" />
+                          Verify Claim
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Info Panel */}
+          <div className="space-y-6">
+            {/* How it Works */}
+            <Card className="bg-white/5 backdrop-blur-sm border border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white text-lg">How It Works</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[
+                  {
+                    icon: <Shield className="h-5 w-5 text-blue-400" />,
+                    title: 'Zero-Knowledge Proof',
+                    description: 'Cryptographic verification without revealing sensitive data',
+                  },
+                  {
+                    icon: <CheckCircle className="h-5 w-5 text-green-400" />,
+                    title: 'Instant Validation',
+                    description: 'Real-time claim authenticity verification',
+                  },
+                  {
+                    icon: <Shield className="h-5 w-5 text-purple-400" />,
+                    title: 'Privacy Protected',
+                    description: 'Patient data and amounts remain completely private',
+                  },
+                ].map((item, index) => (
+                  <div key={index} className="flex space-x-3">
+                    <div className="flex-shrink-0">{item.icon}</div>
+                    <div>
+                      <h4 className="text-white font-medium text-sm">{item.title}</h4>
+                      <p className="text-gray-400 text-xs">{item.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
             {/* Privacy Notice */}
-            <Card className="bg-blue-900/20 border-blue-500">
-              <CardContent className="pt-6">
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold text-blue-400">Privacy-First Verification</h3>
+            <Card className="bg-blue-500/10 border border-blue-500/20">
+              <CardContent className="pt-6 pb-6">
+                <div className="text-center">
+                  <Shield className="h-8 w-8 text-blue-400 mx-auto mb-3" />
+                  <h4 className="text-blue-400 font-semibold mb-2">Privacy Guaranteed</h4>
                   <p className="text-blue-300 text-sm">
-                    This system uses zero-knowledge proofs to verify claims without revealing sensitive 
-                    patient data, provider details, or claim amounts to the verifier. Only verification 
-                    status and minimal metadata are disclosed.
+                    Your claim verification uses zero-knowledge proofs. Sensitive patient information, financial
+                    amounts, and provider details never leave your device.
                   </p>
                 </div>
               </CardContent>
             </Card>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
+
+export default ClaimVerifier;

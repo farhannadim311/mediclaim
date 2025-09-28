@@ -14,8 +14,7 @@
 // limitations under the License.
 
 /**
- * A Single Page Application (SPA) for connecting to and managing deployed
- * bulletin boards.
+ * A Single Page Application (SPA) for the ZK Claim Verifier
  *
  * @packageDocumentation
  */
@@ -24,14 +23,13 @@ import './globals';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { setNetworkId, NetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import { App } from './components/App';
+import App from './App';
 import { BrowserRouter } from 'react-router-dom';
 import '@midnight-ntwrk/dapp-connector-api';
 import * as pino from 'pino';
-import { DeployedBoardProvider } from './contexts';
 
 const networkId = import.meta.env.VITE_NETWORK_ID as NetworkId;
-// contract address: 0200dbf964f541e1950883f5b2f539b66fd6111e46ce8e6e9551fbdd180114d5dd5b
+
 // Ensure that the network IDs are set within the Midnight libraries.
 setNetworkId(networkId);
 
@@ -41,13 +39,12 @@ export const logger = pino.pino({
 });
 
 logger.trace(`networkId = ${networkId}`);
+logger.info('Starting ZK Claim Verifier UI');
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <DeployedBoardProvider logger={logger}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </DeployedBoardProvider>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>,
 );

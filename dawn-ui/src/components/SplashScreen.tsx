@@ -1,5 +1,4 @@
 import React from 'react';
-import { DawnLogo } from './Layout/Logo';
 
 /**
  * Fullscreen splash shown on first load for ~4s. No navbar during splash.
@@ -9,7 +8,7 @@ const SplashScreen: React.FC = () => {
     <div className="fixed inset-0 z-[9999] text-white overflow-hidden">
       {/* Sunrise gradient background */}
       <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-900 to-black">
-        <div 
+        <div
           className="absolute inset-0"
           style={{
             background: `
@@ -26,7 +25,7 @@ const SplashScreen: React.FC = () => {
               )
             `,
             opacity: 0,
-            animation: 'sunriseGlow 3000ms 2700ms ease-out forwards'
+            animation: 'sunriseGlow 3000ms 2700ms ease-out forwards',
           }}
         />
       </div>
@@ -34,112 +33,195 @@ const SplashScreen: React.FC = () => {
       {/* Text sequence - positioned in upper portion */}
       <div className="absolute inset-0 flex flex-col items-center justify-start pt-[25vh] pointer-events-none">
         <div className="text-center px-6 max-w-2xl">
-          <p className="text-3xl md:text-4xl opacity-0" style={{ animation: 'textFade 1500ms ease-out 300ms forwards, textOut 600ms ease-in 2400ms forwards' }}>
-            In the darkness of corruption...
+          <p
+            className="text-3xl md:text-4xl opacity-0"
+            style={{ animation: 'textFade 1500ms ease-out 300ms forwards, textOut 600ms ease-in 2400ms forwards' }}
+          >
+            In healthcare claims verification...
           </p>
-          <p className="mt-4 text-3xl md:text-4xl font-semibold tracking-wide opacity-0" style={{ animation: 'textFade 1200ms ease-out 2700ms forwards, textOut 600ms ease-in 4200ms forwards' }}>
-            Truth and transparency collide to bring dawn.
+          <p
+            className="mt-4 text-3xl md:text-4xl font-semibold tracking-wide opacity-0"
+            style={{ animation: 'textFade 1200ms ease-out 2700ms forwards, textOut 600ms ease-in 4200ms forwards' }}
+          >
+            Privacy and proof unite with ZK technology.
           </p>
         </div>
       </div>
 
       {/* Collision stage - positioned in center */}
-      <div className="absolute inset-0 flex items-center justify-center" style ={{animation: 'hideAfter5s 800ms 2550ms ease-out both'}}>
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{ animation: 'hideAfter5s 800ms 2550ms ease-out both' }}
+      >
         <div className="relative w-[400px] h-[120px] md:w-[500px] md:h-[140px]">
-          
           {/* Midnight logo - slides in from left */}
-          <div className="absolute left-0 top-1/2 -translate-y-1/2" style={{ opacity: 0, transform: 'translateX(-300px) translateY(-50%)', animation: 'slideInLeft 1800ms 1200ms cubic-bezier(0.25,1,0.3,1) forwards' }}>
+          <div
+            className="absolute left-0 top-1/2 -translate-y-1/2"
+            style={{
+              opacity: 0,
+              transform: 'translateX(-300px) translateY(-50%)',
+              animation: 'slideInLeft 1800ms 1200ms cubic-bezier(0.25,1,0.3,1) forwards',
+            }}
+          >
             <img src="/midnight-logo.png" alt="Midnight" className="h-12 md:h-14 filter drop-shadow-lg" />
           </div>
 
           {/* Sun circle - slides in from right */}
-          <div 
+          <div
             className="absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 rounded-full"
-            style={{ 
+            style={{
               background: 'radial-gradient(circle, #fbbf24 20%, #f59e0b 50%, #d97706 80%)',
               boxShadow: '0 0 40px 8px rgba(251,191,36,0.4)',
-              opacity: 0, 
-              transform: 'translateX(300px) translateY(-50%)', 
-              animation: 'slideInRight 1800ms 1200ms cubic-bezier(0.25,1,0.3,1) forwards'
+              opacity: 0,
+              transform: 'translateX(300px) translateY(-50%)',
+              animation: 'slideInRight 1800ms 1200ms cubic-bezier(0.25,1,0.3,1) forwards',
             }}
           />
 
           {/* Collision impact effects */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {/* Energy burst */}
-            <div 
+            <div
               className="absolute w-20 h-20 rounded-full bg-white"
-              style={{ 
+              style={{
                 opacity: 0,
-                animation: 'energyBurst 750ms 3000ms ease-out forwards'
+                animation: 'energyBurst 750ms 3000ms ease-out forwards',
               }}
             />
-            
+
             {/* Shockwave rings */}
-            <div 
+            <div
               className="absolute w-4 h-4 rounded-full border-2 border-orange-300"
-              style={{ 
+              style={{
                 opacity: 0,
                 transform: 'translate(-50%, -50%)',
                 animation: 'shockwave1 1200ms 3000ms ease-out forwards',
-                boxShadow: '0 0 36px 10px rgba(252, 211, 77, 0.25)'
+                boxShadow: '0 0 36px 10px rgba(252, 211, 77, 0.25)',
               }}
             />
-            <div 
+            <div
               className="absolute w-4 h-4 rounded-full border border-yellow-200"
-              style={{ 
+              style={{
                 opacity: 0,
                 transform: 'translate(-50%, -50%)',
                 animation: 'shockwave2 1500ms 3150ms ease-out forwards',
-                boxShadow: '0 0 24px 6px rgba(250, 204, 21, 0.2)'
+                boxShadow: '0 0 24px 6px rgba(250, 204, 21, 0.2)',
               }}
             />
 
             {/* Particle streaks */}
             <div className="absolute left-1/2 top-1/2">
-              <div className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-200 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(8deg)', animation: 'streak 1050ms 2925ms ease-out forwards' }} />
-              <div className="absolute h-[2px] w-32 bg-gradient-to-r from-white via-amber-300 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(-12deg)', animation: 'streak 1080ms 2970ms ease-out forwards' }} />
-              <div className="absolute h-[2px] w-24 bg-gradient-to-r from-white via-amber-200 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(25deg)', animation: 'streak 1020ms 3000ms ease-out forwards' }} />
-              <div className="absolute h-[2px] w-36 bg-gradient-to-r from-white via-amber-300 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(-28deg)', animation: 'streak 1140ms 2940ms ease-out forwards' }} />
-              <div className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-200 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(42deg)', animation: 'streak 1110ms 3030ms ease-out forwards' }} />
-              <div className="absolute h-[2px] w-24 bg-gradient-to-r from-white via-amber-200 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(-38deg)', animation: 'streak 1035ms 3075ms ease-out forwards' }} />
-              <div className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-300 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(58deg)', animation: 'streak 1065ms 3000ms ease-out forwards' }} />
-              <div className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-300 to-transparent" style={{ opacity: 0, transform: 'translate(-50%, -50%) rotate(-52deg)', animation: 'streak 1080ms 3045ms ease-out forwards' }} />
+              <div
+                className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-200 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(8deg)',
+                  animation: 'streak 1050ms 2925ms ease-out forwards',
+                }}
+              />
+              <div
+                className="absolute h-[2px] w-32 bg-gradient-to-r from-white via-amber-300 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(-12deg)',
+                  animation: 'streak 1080ms 2970ms ease-out forwards',
+                }}
+              />
+              <div
+                className="absolute h-[2px] w-24 bg-gradient-to-r from-white via-amber-200 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(25deg)',
+                  animation: 'streak 1020ms 3000ms ease-out forwards',
+                }}
+              />
+              <div
+                className="absolute h-[2px] w-36 bg-gradient-to-r from-white via-amber-300 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(-28deg)',
+                  animation: 'streak 1140ms 2940ms ease-out forwards',
+                }}
+              />
+              <div
+                className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-200 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(42deg)',
+                  animation: 'streak 1110ms 3030ms ease-out forwards',
+                }}
+              />
+              <div
+                className="absolute h-[2px] w-24 bg-gradient-to-r from-white via-amber-200 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(-38deg)',
+                  animation: 'streak 1035ms 3075ms ease-out forwards',
+                }}
+              />
+              <div
+                className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-300 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(58deg)',
+                  animation: 'streak 1065ms 3000ms ease-out forwards',
+                }}
+              />
+              <div
+                className="absolute h-[2px] w-28 bg-gradient-to-r from-white via-amber-300 to-transparent"
+                style={{
+                  opacity: 0,
+                  transform: 'translate(-50%, -50%) rotate(-52deg)',
+                  animation: 'streak 1080ms 3045ms ease-out forwards',
+                }}
+              />
             </div>
           </div>
-
         </div>
       </div>
 
       {/* Impact flash overlay */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.15) 55%, rgba(255,255,255,0) 70%)', opacity: 0, animation: 'impactFlash 480ms 3000ms ease-out forwards' }} />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(circle at center, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.15) 55%, rgba(255,255,255,0) 70%)',
+          opacity: 0,
+          animation: 'impactFlash 480ms 3000ms ease-out forwards',
+        }}
+      />
 
       {/* Post-impact logo reveal */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div style={{ opacity: 0, animation: 'revealTitle 1350ms 3600ms cubic-bezier(0.2,0.8,0.2,1) forwards' }}>
-          <DawnLogo size='lg' />
+          <div className="text-center">
+            <h1 className="text-5xl font-bold text-white mb-2">ZK Claim Verifier</h1>
+            <p className="text-lg text-blue-400">Privacy-Preserving Healthcare</p>
+          </div>
         </div>
       </div>
 
       {/* Enhanced horizon glow that rises - hidden behind logo reveal */}
-      <div 
+      <div
         className="absolute left-1/2 -translate-x-1/2 w-[180vh] h-[180vh] rounded-full blur-[32px]"
-        style={{ 
+        style={{
           bottom: '-60vh',
-          background: 'radial-gradient(ellipse 80% 40% at center, rgba(251,146,60,0.4) 0%, rgba(245,158,11,0.25) 35%, rgba(217,119,6,0.15) 55%, rgba(0,0,0,0) 75%)',
+          background:
+            'radial-gradient(ellipse 80% 40% at center, rgba(251,146,60,0.4) 0%, rgba(245,158,11,0.25) 35%, rgba(217,119,6,0.15) 55%, rgba(0,0,0,0) 75%)',
           opacity: 0,
-          animation: 'horizonRise 2700ms 3300ms ease-out forwards'
+          animation: 'horizonRise 2700ms 3300ms ease-out forwards',
         }}
       />
-      
+
       {/* Additional atmospheric layers - hidden behind logo reveal */}
-      <div 
+      <div
         className="absolute left-1/2 -translate-x-1/2 w-[140vh] h-[140vh] rounded-full blur-[16px]"
-        style={{ 
+        style={{
           bottom: '-45vh',
-          background: 'radial-gradient(ellipse 60% 30% at center, rgba(251,191,36,0.3) 0%, rgba(245,158,11,0.2) 40%, rgba(0,0,0,0) 70%)',
+          background:
+            'radial-gradient(ellipse 60% 30% at center, rgba(251,191,36,0.3) 0%, rgba(245,158,11,0.2) 40%, rgba(0,0,0,0) 70%)',
           opacity: 0,
-          animation: 'horizonRise 2400ms 3600ms ease-out forwards'
+          animation: 'horizonRise 2400ms 3600ms ease-out forwards',
         }}
       />
 
@@ -219,8 +301,4 @@ const SplashScreen: React.FC = () => {
   );
 };
 
-
-
 export default SplashScreen;
-
-

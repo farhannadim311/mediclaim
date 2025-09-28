@@ -1,41 +1,86 @@
-import React, { useState } from 'react';
-import { MainNavigation } from './MainNavigation';
-import { PatientDashboard } from './PatientDashboard';
-import { ProviderDashboard } from './ProviderDashboard';
-import { InsuranceDashboard } from './InsuranceDashboard';
-import { ClaimVerifier } from './ClaimVerifier';
+import React, { useEffect, useState } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import Landing from './Landing';
+import WalletConnect from './WalletConnect';
+import ClaimVerifier from './ClaimVerifier';
+import Dashboard from './Dashboard';
+import SplashScreen from './SplashScreen';
 
-type UserRole = 'patient' | 'provider' | 'insurance' | 'demo';
+const App: React.FC = () => {
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const navigate = useNavigate();
 
-export const App: React.FC = () => {
-  const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const handleRoleSelect = (role: string) => {
-    setCurrentRole(role as UserRole);
+  const handleConnect = (address: string) => {
+    setWalletAddress(address);
+    setIsConnected(true);
+    navigate('/dashboard');
   };
 
-  const handleBackToRoles = () => {
-    setCurrentRole(null);
+  const handleDisconnect = () => {
+    setWalletAddress(null);
+    setIsConnected(false);
+    navigate('/');
   };
 
-  const renderDashboard = () => {
-    switch (currentRole) {
-      case 'patient':
-        return <PatientDashboard onBack={handleBackToRoles} />;
-      case 'provider':
-        return <ProviderDashboard onBack={handleBackToRoles} />;
-      case 'insurance':
-        return <InsuranceDashboard onBack={handleBackToRoles} />;
-      case 'demo':
-        return <ClaimVerifier onBack={handleBackToRoles} />;
-      default:
-        return <MainNavigation onRoleSelect={handleRoleSelect} currentRole={currentRole} />;
-    }
-  };
+  if (showSplash) {
+    return (
+      <div className="bg-black min-h-screen flex items-center justify-center">
+        <SplashScreen />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {renderDashboard()}
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-black text-white">
+      <main className="container mx-auto px-4 py-8">
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route
+            path="/wallet"
+            element={
+              <WalletConnect onConnect={handleConnect} isConnected={isConnected} walletAddress={walletAddress || ''} />
+            }
+          />
+          <Route
+            path="/verify"
+            element={
+              isConnected && walletAddress ? (
+                <ClaimVerifier walletAddress={walletAddress} />
+              ) : (
+                <WalletConnect
+                  onConnect={handleConnect}
+                  isConnected={isConnected}
+                  walletAddress={walletAddress || ''}
+                />
+              )
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              isConnected && walletAddress ? (
+                <Dashboard walletAddress={walletAddress} />
+              ) : (
+                <WalletConnect
+                  onConnect={handleConnect}
+                  isConnected={isConnected}
+                  walletAddress={walletAddress || ''}
+                />
+              )
+            }
+          />
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </main>
     </div>
   );
 };
+
+export default App;
