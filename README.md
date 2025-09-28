@@ -99,17 +99,7 @@ The system uses zero-knowledge proofs to verify claims without revealing sensiti
 
 ### Quick Start
 
-#### Option 1: Demo Scripts (Recommended)
-
-```bash
-# Linux/macOS
-./demo.sh
-
-# Windows
-demo.bat
-```
-
-#### Option 2: Manual Setup
+#### Manual Setup
 
 ```bash
 # 1. Clone the repository
@@ -134,39 +124,6 @@ cd ../api-bridge && npm start
 # 7. Start attestation service (optional)
 cd ../attestation && npm start
 ```
-
-### Application Access
-
-#### 🌐 Web Interface
-
-- **URL**: `http://localhost:5173`
-- **Features**: Complete claim verification workflow
-- **Wallet**: Connect Lace wallet to get started
-
-#### 🔧 CLI Interface
-
-```bash
-cd mediclaim-cli
-npm run start:testnet-remote
-```
-
-#### 🌉 API Bridge
-
-- **URL**: `http://localhost:3000`
-- **Endpoints**: RESTful API for claim operations
-
-#### 📧 Attestation Service
-
-- **URL**: `http://localhost:8788`
-- **Features**: Email notifications and attestations
-
-### First-Time Setup
-
-1. **Install Lace Wallet**: Add the Lace wallet browser extension
-2. **Connect to Testnet**: Configure wallet for Midnight Network testnet
-3. **Access Application**: Navigate to `http://localhost:5173`
-4. **Connect Wallet**: Click "Connect Wallet" and authorize
-5. **Verify First Claim**: Use "Generate Sample Data" for testing
 
 ## 📋 Complete User Guide
 
@@ -209,112 +166,6 @@ npm run start:testnet-remote
 - **Verification Hash**: Cryptographic proof of verification
 - **Privacy Notice**: Confirmation that no sensitive data was exposed
 
-### 🔧 CLI Operations
-
-#### Contract Management
-
-```bash
-# Deploy new contract
-npm run deploy
-
-# Join existing contract
-npm run join --address <contract-address>
-
-# Verify claim via CLI
-npm run verify-claim --data <claim-data>
-```
-
-#### Testing & Development
-
-```bash
-# Run test suite
-npm run test
-
-# Generate test data
-npm run generate-test-data
-
-# Debug verification
-npm run debug --claim-id <id>
-```
-
-## ⚙️ Configuration & Deployment
-
-### Environment Variables
-
-#### Web Application (`mediclaim-ui`)
-
-```bash
-# Midnight Network
-VITE_NETWORK_ID=testnet
-VITE_LOGGING_LEVEL=info
-
-# API Endpoints
-VITE_API_BASE_URL=http://localhost:3000
-VITE_ATTESTATION_SERVICE_URL=http://localhost:8788
-
-# Wallet Configuration
-VITE_WALLET_CONNECT_PROJECT_ID=your_project_id
-```
-
-#### API Bridge (`api-bridge`)
-
-```bash
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# Midnight Network
-MIDNIGHT_NETWORK_ID=testnet
-MIDNIGHT_PROOF_SERVER_URL=http://localhost:8080
-
-# Authentication
-JWT_SECRET=your_jwt_secret
-WALLET_CONNECT_PROJECT_ID=your_project_id
-```
-
-#### Attestation Service (`attestation`)
-
-```bash
-# Service Configuration
-PORT=8788
-NODE_ENV=development
-
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
-
-# Cryptographic Keys
-ATTESTATION_PRIVATE_KEY=your_private_key
-ATTESTATION_PUBLIC_KEY=your_public_key
-```
-
-#### Integration Tests
-
-```bash
-# Test ZK contract integration
-npm run test:integration
-
-# Test API endpoints
-npm run test:api
-
-# Test wallet connectivity
-npm run test:wallet
-```
-
-#### End-to-End Testing
-
-```bash
-# Full workflow testing
-npm run test:e2e
-
-# Visual regression testing
-npm run test:visual
-
-# Performance testing
-npm run test:performance
-```
 
 ## 📝 API Documentation
 
@@ -348,3 +199,4 @@ POST /api/notifications/send
   }
 }
 ```
+
