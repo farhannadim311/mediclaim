@@ -2,7 +2,6 @@
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"],
   "compilerOptions": {
-    "rootDir": "src",
     "outDir": "dist",
     "noEmit": false,
     "declaration": false,

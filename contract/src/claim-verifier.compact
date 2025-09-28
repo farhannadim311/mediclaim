@@ -43,7 +43,7 @@ export ledger claimStatus: Map<Uint<64>, ClaimStatus>;
 export ledger claimVerificationHash: Map<Uint<64>, Bytes<32>>;
 
 // Store verification metadata (no PHI)
-export ledger claimMetadata: Map<Uint<64>, Bytes<32>>;
+export ledger claimMetadata: Map<Uint<64>, Bytes<64>>;
 
 // Initialize sequence counter
 constructor() { 
@@ -124,10 +124,22 @@ export circuit verifyClaim(
   // Generate claim ID
   const id = claimSequence as Uint<64>;
 
+  // Store the claim data (disclose only non-sensitive parts)
+  claimData.insert(id, disclose(claim));
+  
+  // Set initial status to PENDING
+  claimStatus.insert(id, ClaimStatus.PENDING);
+  
+  // Store verification hash (disclose for transparency)
+  claimVerificationHash.insert(id, disclose(claimHash));
+  
+  // Store metadata (no PHI - safe to disclose)
+  claimMetadata.insert(id, disclose(claim.metadata));
+
   // Increment sequence for next claim
   claimSequence.increment(1);
 
-  // Publicly return the claim ID (demo purpose)
+  // Publicly return the claim ID
   return disclose(id);
 }
 
@@ -144,7 +156,7 @@ export circuit getClaimVerificationHash(claimId: Uint<64>): Bytes<32> {
 }
 
 // Get claim metadata (no PHI)
-export circuit getClaimMetadata(claimId: Uint<64>): Bytes<32> {
+export circuit getClaimMetadata(claimId: Uint<64>): Bytes<64> {
   const metadata = claimMetadata.lookup(disclose(claimId));
   return metadata;
 }
@@ -166,4 +178,9 @@ export circuit getClaimsByStatus(status: ClaimStatus): Uint<64> {
   // This would require iterating through all claims
   // For simplicity, return 0 (can be enhanced later)
   return 0 as Uint<64>;
+}
+
+// Get all claims (for demo purposes - returns count)
+export circuit getAllClaims(): Uint<64> {
+  return claimSequence as Uint<64>;
 }

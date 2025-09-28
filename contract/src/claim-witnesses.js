@@ -8,8 +8,6 @@
  *   - VERIFY_PROVIDER_AUTHORIZATION: Checks if provider is authorized for claim type
  *   - VERIFY_PATIENT_ELIGIBILITY: Checks if patient is eligible for claim type
  */
-import { Ledger } from "./managed/claim/contract/index.cjs";
-import { WitnessContext } from "@midnight-ntwrk/compact-runtime";
 // For circomlibjs 0.1.7, we need to use async builders
 let babyJub = null;
 let eddsa = null;

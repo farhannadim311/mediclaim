@@ -8,7 +8,7 @@
     "claim-verifier-api": "file:../api"
   },
   "scripts": {
-    "build": "npm --prefix ../api run build && rm -rf dist && tsc --project tsconfig.build.json && mkdir -p dist/contract/src/managed && (cp -R ../contract/src/managed/claim-verifier dist/contract/src/managed/ || echo 'Contract managed directory not found - skipping copy')",
+    "build": "npm --prefix ../api run build && rm -rf dist && tsc --project tsconfig.build.json && mkdir -p dist/contract/src/managed && (cp -R ../contract/src/managed/claim dist/contract/src/managed/ || echo 'Contract managed directory not found - skipping copy')",
     "ci": "npm run typecheck && npm run lint && npm run build",
     "lint": "eslint src",
     "prepack": "npm run build",

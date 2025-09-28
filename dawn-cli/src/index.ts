@@ -33,7 +33,7 @@ import {
   type ClaimDerivedState,
   type PrivateStateId,
   claimPrivateStateKey,
-} from 'claim-verifier-api'; // <-- ESM extension required for NodeNext
+} from 'claim-verifier-api'; // <-- Import from package
 // Note: DeployedClaimContract and ClaimType will be available after contract compilation
 // Note: These will be available after contract compilation
 // Note: These will be available after contract compilation
@@ -69,17 +69,6 @@ import fetch from 'node-fetch';
 // @ts-expect-error: It's needed to enable WebSocket usage through apollo
 globalThis.WebSocket = WebSocket;
 
-// Attestation types
-interface AttestationResponse {
-  domainHash: string;
-  policyMask: number;
-  expiryDays: number;
-  sigR8x: string;
-  sigR8y: string;
-  sigS: string;
-  policiesGranted: number[];
-}
-
 // Claim type enum mapping for display
 const CLAIM_TYPE_NAMES = {
   0: 'MEDICAL_INVOICE',
@@ -95,59 +84,6 @@ function isValidClaimType(claimType: number): boolean {
 
 function getClaimTypeName(claimType: number): string {
   return CLAIM_TYPE_NAMES[claimType as keyof typeof CLAIM_TYPE_NAMES] || `UNKNOWN(${claimType})`;
-}
-
-const ATTESTATION_BASE_URL = process.env.ATTESTATION_URL || 'http://localhost:8788';
-
-// Check if attestation service is configured correctly
-const validateAttestationService = async (logger: Logger): Promise<boolean> => {
-  try {
-    const healthResponse = await fetch(`${ATTESTATION_BASE_URL}/healthz`);
-    if (!healthResponse.ok) {
-      logger.error('Attestation service is not healthy');
-      return false;
-    }
-
-    logger.info('Attestation service is running correctly');
-    return true;
-  } catch (error) {
-    logger.error(`Cannot connect to attestation service: ${String(error)}`);
-    return false;
-  }
-};
-
-/** Convert hex string to Uint8Array (32 bytes for contract) */
-function hexToBytes32(hex: string): Uint8Array {
-  if (!hex) {
-    throw new Error('Hex string is empty or undefined');
-  }
-
-  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
-
-  // Ensure we have exactly 64 characters (32 bytes)
-  if (clean.length !== 64) {
-    throw new Error(`Expected 64 hex characters (32 bytes), got ${clean.length}`);
-  }
-
-  const bytes = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    const hexByte = clean.slice(i * 2, i * 2 + 2);
-    bytes[i] = parseInt(hexByte, 16);
-    if (isNaN(bytes[i])) {
-      throw new Error(`Invalid hex byte: ${hexByte} at position ${i}`);
-    }
-  }
-
-  return bytes;
-}
-
-/** Current date as YYYYMMDD */
-function todayYYYYMMDD(): bigint {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = (d.getMonth() + 1).toString().padStart(2, '0');
-  const day = d.getDate().toString().padStart(2, '0');
-  return BigInt(`${y}${m}${day}`);
 }
 
 /* **********************************************************************
@@ -187,7 +123,11 @@ const deployOrJoin = async (providers: ClaimProviders, rli: Interface, logger: L
         logger.info(`Deployed ZK Claim Verifier contract at address: ${api.deployedContractAddress}`);
         return api;
       case '2':
-        api = await ClaimAPI.join(providers, (await rli.question('What is the contract address (in hex)? ')) as any, logger);
+        api = await ClaimAPI.join(
+          providers,
+          (await rli.question('What is the contract address (in hex)? ')) as any,
+          logger,
+        );
         logger.info(`Joined ZK Claim Verifier contract at address: ${api.deployedContractAddress}`);
         return api;
       case '3':
@@ -253,65 +193,26 @@ const displayDerivedState = (ledgerState: ClaimDerivedState | undefined, logger:
 
 const MAIN_LOOP_QUESTION = `
 You can do one of the following:
-  1. Get email attestation for claim verification
-  2. Verify a claim (requires attestation)
-  3. Get claim status by ID
-  4. List all verified claims
-  5. Display the current ledger state (known by everyone)
-  6. Display the current private state (known only to this DApp instance)
-  7. Display the current derived state (known only to this DApp instance)
-  8. Exit
+  1. Verify a claim
+  2. Get claim status by ID
+  3. List all verified claims
+  4. Display the current ledger state (known by everyone)
+  5. Display the current private state (known only to this DApp instance)
+  6. Display the current derived state (known only to this DApp instance)
+  7. Exit
 Which would you like to do? `;
 
-// Attestation functionality
-const getEmailAttestation = async (rli: Interface, logger: Logger): Promise<AttestationResponse | null> => {
-  try {
-    const email = await rli.question('Enter your email address: ');
-
-    // For demo mode, skip email verification and return mock attestation
-    logger.info('Demo mode: Skipping email verification, using mock attestation');
-    
-    const mockAttestation: AttestationResponse = {
-      domainHash: '0x' + Buffer.from(utils.randomBytes(32)).toString('hex'),
-      policyMask: 0b11111, // All policies granted
-      expiryDays: 7,
-      sigR8x: '0x' + Buffer.from(utils.randomBytes(32)).toString('hex'),
-      sigR8y: '0x' + Buffer.from(utils.randomBytes(32)).toString('hex'),
-      sigS: '0x' + Buffer.from(utils.randomBytes(32)).toString('hex'),
-      policiesGranted: [0, 1, 2, 3, 4] // All claim types
-    };
-
-    const policyNames = mockAttestation.policiesGranted.map((policy) => `${policy}(${getClaimTypeName(policy)})`).join(', ');
-    logger.info(`Mock attestation successful! Granted access to policies: ${policyNames}`);
-    logger.info(`Mock attestation expires in: ${mockAttestation.expiryDays} days`);
-
-    return mockAttestation;
-  } catch (error) {
-    logger.error(`Attestation error: ${String(error)}`);
-    return null;
-  }
-};
-
-const verifyClaimWithAttestation = async (
-  claimApi: ClaimAPI,
-  attestation: AttestationResponse,
-  rli: Interface,
-  logger: Logger,
-): Promise<void> => {
+const verifyClaimDirectly = async (claimApi: ClaimAPI, rli: Interface, logger: Logger): Promise<void> => {
   try {
     // Get claim details from user
-    const policyList = attestation.policiesGranted.map((policy) => `${policy}(${getClaimTypeName(policy)})`).join(', ');
-    logger.info(`Available claim types: ${policyList}`);
+    logger.info(
+      'Available claim types: 0(Medical Invoice), 1(Prescription Drug), 2(Dental Procedure), 3(Vision Care), 4(Emergency Room)',
+    );
     const claimTypeStr = await rli.question('Enter claim type number (0-4): ');
     const claimType = parseInt(claimTypeStr, 10);
 
     if (!isValidClaimType(claimType)) {
       logger.error(`Invalid claim type: ${claimType}. Valid range is 0-4.`);
-      return;
-    }
-
-    if (!attestation.policiesGranted.includes(claimType)) {
-      logger.error(`You don't have permission to verify claim type ${claimType}(${getClaimTypeName(claimType)})`);
       return;
     }
 
@@ -324,71 +225,23 @@ const verifyClaimWithAttestation = async (
     const description = await rli.question('Enter claim description: ');
     const metadata = (await rli.question('Enter metadata (optional): ')) || '{}';
 
-    // Convert attestation data with validation
-    logger.info('Converting attestation data...');
-    logger.info(`Domain hash: ${attestation.domainHash}`);
-    logger.info(`Policy mask: ${attestation.policyMask}`);
-    logger.info(`Expiry days: ${attestation.expiryDays}`);
+    logger.info(`Claim details: ${getClaimTypeName(claimType)}, Amount: ${amount}, Date: ${serviceDate}`);
+    logger.info('Calling verifyClaim with validated parameters...');
 
-    try {
-      logger.info('Converting domain hash...');
-      const domainHash = hexToBytes32(attestation.domainHash);
-      logger.info('Converting policy mask...');
-      const policyMask = BigInt(attestation.policyMask);
-      logger.info('Converting expiry days...');
-      const expiryDays = BigInt(attestation.expiryDays);
-      logger.info('Converting signature R8x...');
-      const sigR8x = hexToBytes32(attestation.sigR8x);
-      logger.info('Converting signature R8y...');
-      const sigR8y = hexToBytes32(attestation.sigR8y);
-      logger.info('Converting signature S...');
-      const sigS = hexToBytes32(attestation.sigS);
-      logger.info('Getting today date...');
-      const todayDays = todayYYYYMMDD();
+    // Verify claim using real ZK proofs
+    const claimData = {
+      claimType,
+      amount: BigInt(amount),
+      serviceDate: BigInt(serviceDate),
+      providerId: provider,
+      patientId: patient,
+      description,
+      metadata: JSON.parse(metadata),
+    };
 
-      logger.info(`Converted arrays:`);
-      logger.info(
-        `Domain hash: ${domainHash.length} bytes, first few: ${Array.from(domainHash.slice(0, 4))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')}`,
-      );
-      logger.info(
-        `R8x: ${sigR8x.length} bytes, first few: ${Array.from(sigR8x.slice(0, 4))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')}`,
-      );
-      logger.info(
-        `R8y: ${sigR8y.length} bytes, first few: ${Array.from(sigR8y.slice(0, 4))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')}`,
-      );
-      logger.info(
-        `S: ${sigS.length} bytes, first few: ${Array.from(sigS.slice(0, 4))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')}`,
-      );
-      logger.info(`Today: ${todayDays}, Expiry: ${expiryDays}`);
-
-      logger.info(`Claim details: ${getClaimTypeName(claimType)}, Amount: ${amount}, Date: ${serviceDate}`);
-      logger.info('Calling verifyClaim with validated parameters...');
-
-      // Note: This will be properly implemented after contract compilation
-      logger.info('Claim verification would be called here with the following parameters:');
-      logger.info(`  Claim Type: ${claimType} (${getClaimTypeName(claimType)})`);
-      logger.info(`  Amount: ${amount}`);
-      logger.info(`  Service Date: ${serviceDate}`);
-      logger.info(`  Provider: ${provider}`);
-      logger.info(`  Patient: ${patient}`);
-      logger.info(`  Description: ${description}`);
-      logger.info(`  Metadata: ${metadata}`);
-
-      const claimId = BigInt(Math.floor(Math.random() * 1000000)); // Mock claim ID
-
-      logger.info(`Claim verified successfully! Claim ID: ${claimId}`);
-    } catch (conversionError) {
-      logger.error(`Error in hex conversion: ${String(conversionError)}`);
-      throw conversionError;
-    }
+    // Use the real API function
+    const claimId = await claimApi.verifyClaim(claimData);
+    logger.info(`Claim verified successfully! Claim ID: ${claimId}`);
   } catch (error) {
     logger.error(`Failed to verify claim: ${String(error)}`);
     if (error instanceof Error) {
@@ -403,12 +256,14 @@ const getClaimStatus = async (claimApi: ClaimAPI, rli: Interface, logger: Logger
     const id = BigInt(idStr);
 
     logger.info(`Retrieving claim status ${id}...`);
-    // Note: This will be properly implemented after contract compilation
+
+    // Use the real API function
+    const status = await claimApi.getClaimStatus(id);
     logger.info(`Claim Status:`);
     logger.info(`  Claim ID: ${id}`);
-    logger.info(`  Status: VERIFIED (mock)`);
-    logger.info(`  Verification Hash: 0x${Math.random().toString(16).substring(2, 66)}`);
-    logger.info(`  Timestamp: ${new Date().toISOString()}`);
+    logger.info(`  Status: ${status.status}`);
+    logger.info(`  Verification Hash: ${status.verificationHash}`);
+    logger.info(`  Timestamp: ${status.timestamp}`);
   } catch (error) {
     logger.error(`Failed to retrieve claim status: ${String(error)}`);
   }
@@ -417,18 +272,14 @@ const getClaimStatus = async (claimApi: ClaimAPI, rli: Interface, logger: Logger
 const getAllVerifiedClaims = async (claimApi: ClaimAPI, logger: Logger): Promise<void> => {
   try {
     logger.info('Retrieving all verified claims...');
-    // Note: This will be properly implemented after contract compilation
-    logger.info('Found 3 verified claims (mock data):');
+
+    // Use the real API function
+    const claims = await claimApi.getAllVerifiedClaims();
+    logger.info(`Found ${claims.length} verified claims:`);
     logger.info('='.repeat(80));
 
-    const mockClaims = [
-      { claimId: 1, claimType: 0, status: true, verificationHash: '0x1234...', timestamp: new Date().toISOString() },
-      { claimId: 2, claimType: 1, status: true, verificationHash: '0x5678...', timestamp: new Date().toISOString() },
-      { claimId: 3, claimType: 2, status: true, verificationHash: '0x9abc...', timestamp: new Date().toISOString() },
-    ];
-
-    mockClaims.forEach((claim: any, index: number) => {
-      logger.info(`Claim ${index}:`);
+    claims.forEach((claim: any, index: number) => {
+      logger.info(`Claim ${index + 1}:`);
       logger.info(`  Claim ID: ${claim.claimId}`);
       logger.info(`  Type: ${getClaimTypeName(claim.claimType)}`);
       logger.info(`  Status: ${claim.status ? 'VERIFIED' : 'PENDING'}`);
@@ -442,20 +293,11 @@ const getAllVerifiedClaims = async (claimApi: ClaimAPI, logger: Logger): Promise
 };
 
 const mainLoop = async (providers: ClaimProviders, rli: Interface, logger: Logger): Promise<void> => {
-  // Skip attestation service validation for demo
-  logger.info('Skipping attestation service validation for demo mode');
-  // const isAttestationValid = await validateAttestationService(logger);
-  // if (!isAttestationValid) {
-  //   logger.error('Please ensure the attestation service is running at ' + ATTESTATION_BASE_URL);
-  //   return;
-  // }
-
   const claimApi = await deployOrJoin(providers, rli, logger);
   if (claimApi === null) {
     return;
   }
   let currentState: ClaimDerivedState | undefined;
-  let currentAttestation: AttestationResponse | null = null;
 
   const stateObserver = {
     next: (state: ClaimDerivedState) => (currentState = state),
@@ -467,35 +309,27 @@ const mainLoop = async (providers: ClaimProviders, rli: Interface, logger: Logge
       const choice = await rli.question(MAIN_LOOP_QUESTION);
       switch (choice) {
         case '1': {
-          currentAttestation = await getEmailAttestation(rli, logger);
+          await verifyClaimDirectly(claimApi, rli, logger);
           break;
         }
         case '2': {
-          if (!currentAttestation) {
-            logger.error('You need to get an email attestation first (option 1)');
-            break;
-          }
-          await verifyClaimWithAttestation(claimApi, currentAttestation, rli, logger);
-          break;
-        }
-        case '3': {
           await getClaimStatus(claimApi, rli, logger);
           break;
         }
-        case '4': {
+        case '3': {
           await getAllVerifiedClaims(claimApi, logger);
           break;
         }
-        case '5':
+        case '4':
           await displayLedgerState(providers, (claimApi as any).deployedContract, logger);
           break;
-        case '6':
+        case '5':
           await displayPrivateState(providers, logger);
           break;
-        case '7':
+        case '6':
           displayDerivedState(currentState, logger);
           break;
-        case '8':
+        case '7':
           logger.info('Exiting...');
           return;
         default:
@@ -512,7 +346,7 @@ const mainLoop = async (providers: ClaimProviders, rli: Interface, logger: Logge
  */
 
 const createWalletAndMidnightProvider = async (wallet: Wallet): Promise<WalletProvider & MidnightProvider> => {
-  const state = await Rx.firstValueFrom(wallet.state()) as any;
+  const state = (await Rx.firstValueFrom(wallet.state())) as any;
   return {
     coinPublicKey: state.coinPublicKey,
     encryptionPublicKey: state.encryptionPublicKey,
@@ -575,7 +409,7 @@ const buildWalletAndWaitForFunds = async (
     'warn',
   );
   wallet.start();
-  const state = await Rx.firstValueFrom(wallet.state()) as any;
+  const state = (await Rx.firstValueFrom(wallet.state())) as any;
   logger.info(`Your wallet seed is: ${seed}`);
   logger.info(`Your wallet address is: ${state.address}`);
   let balance = state.balances[nativeToken()];
@@ -589,13 +423,41 @@ const buildWalletAndWaitForFunds = async (
 };
 
 // Generate a random seed and create the wallet with that.
-const buildFreshWallet = async (config: Config, logger: Logger): Promise<Wallet & Resource> =>
-  await buildWalletAndWaitForFunds(config, logger, toHex(utils.randomBytes(32)));
+const buildFreshWallet = async (config: Config, logger: Logger): Promise<Wallet & Resource> => {
+  const randomSeed = toHex(utils.randomBytes(32));
+  // Remove 0x prefix if present to match GENESIS_MINT_WALLET_SEED format
+  const cleanSeed = randomSeed.startsWith('0x') ? randomSeed.slice(2) : randomSeed;
+  return await buildWalletAndWaitForFunds(config, logger, cleanSeed);
+};
 
 // Prompt for a seed and create the wallet with that.
 const buildWalletFromSeed = async (config: Config, rli: Interface, logger: Logger): Promise<Wallet & Resource> => {
   const seed = await rli.question('Enter your wallet seed: ');
-  return await buildWalletAndWaitForFunds(config, logger, seed);
+
+  // Remove any whitespace
+  const trimmedSeed = seed.trim();
+
+  // Check if it already has 0x prefix
+  let cleanSeed: string;
+  if (trimmedSeed.startsWith('0x')) {
+    cleanSeed = trimmedSeed.slice(2);
+  } else {
+    cleanSeed = trimmedSeed;
+  }
+
+  // Validate seed format - must be exactly 64 hex characters (32 bytes)
+  if (!cleanSeed || cleanSeed.length !== 64) {
+    throw new Error(
+      `Invalid seed: must be exactly 64 hex characters (32 bytes). Got ${cleanSeed?.length || 0} characters.`,
+    );
+  }
+
+  if (!/^[0-9a-fA-F]+$/.test(cleanSeed)) {
+    throw new Error('Invalid seed: must contain only hexadecimal characters (0-9, a-f, A-F)');
+  }
+
+  // Use the seed without 0x prefix, like GENESIS_MINT_WALLET_SEED
+  return await buildWalletAndWaitForFunds(config, logger, cleanSeed);
 };
 
 /* ***********************************************************************
@@ -649,8 +511,11 @@ const mapContainerPort = (env: StartedDockerComposeEnvironment, url: string, con
  */
 
 export const run = async (config: Config, logger: Logger, dockerEnv?: DockerComposeEnvironment): Promise<void> => {
-  // Note: Initialize witnesses will be available after contract compilation
-  // await initClaimWitnesses();
+  // Initialize witnesses for ZK proof verification
+  const { initClaimWitnesses } = await import('../../contract/src/claim-witnesses.js');
+  await initClaimWitnesses();
+  logger.info('Claim witnesses initialized');
+
   const rli = createInterface({ input, output, terminal: true });
   let env;
   if (dockerEnv !== undefined) {

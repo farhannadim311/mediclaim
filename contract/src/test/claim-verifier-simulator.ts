@@ -3,8 +3,13 @@ import {
   QueryContext,
   sampleContractAddress,
   constructorContext,
-  convert_bigint_to_Uint8Array,
 } from "@midnight-ntwrk/compact-runtime";
+
+import {
+  Contract,
+  type Ledger,
+  ledger,
+} from "../managed/claim/contract/index.cjs";
 
 import {
   type ClaimPrivateState,
@@ -13,26 +18,6 @@ import {
   initClaimWitnesses,
   createSampleClaimPrivateState,
 } from "../claim-witnesses.js";
-
-// Mock contract interface for ZK Claim Verifier
-export interface ClaimVerifierContract<T> {
-  witnesses: any;
-  circuits: {
-    verifyClaim: (context: CircuitContext<T>, claim: Claim) => { result: boolean; context: CircuitContext<T>; proofData: any };
-    getClaimStatus: (context: CircuitContext<T>, claimId: bigint) => { result: ClaimStatus; context: CircuitContext<T>; proofData: any };
-    getClaimVerificationHash: (context: CircuitContext<T>, claimId: bigint) => { result: string; context: CircuitContext<T>; proofData: any };
-  };
-  impureCircuits: {
-    verifyClaim: (context: CircuitContext<T>, claim: Claim) => { result: boolean; context: CircuitContext<T>; proofData: any };
-    getClaimStatus: (context: CircuitContext<T>, claimId: bigint) => { result: ClaimStatus; context: CircuitContext<T>; proofData: any };
-    getClaimVerificationHash: (context: CircuitContext<T>, claimId: bigint) => { result: string; context: CircuitContext<T>; proofData: any };
-  };
-  initialState(context: any): {
-    currentContractState: any;
-    currentPrivateState: T;
-    currentZswapLocalState: any;
-  };
-}
 
 export enum ClaimType {
   MEDICAL_INVOICE = 0,
@@ -67,43 +52,23 @@ export interface ClaimVerificationResult {
 }
 
 export class ClaimVerifierSimulator {
-  readonly contract: ClaimVerifierContract<ClaimPrivateState>;
+  readonly contract: Contract<ClaimPrivateState>;
   circuitContext: CircuitContext<ClaimPrivateState>;
   private claimCounter: bigint = 0n;
   private claims: Map<bigint, Claim> = new Map();
   private claimStatuses: Map<bigint, ClaimStatus> = new Map();
   private verificationHashes: Map<bigint, string> = new Map();
 
-  private constructor(params: {
-    authorizedProviders: Map<string, Set<number>>;
-    eligiblePatients: Set<string>;
-    maxClaimAmounts: Map<number, bigint>;
-    minServiceDate: bigint;
-    maxServiceDate: bigint;
-  }) {
-    // Create a mock contract that uses our claim witnesses
-    this.contract = {
-      witnesses: claimWitnesses,
-      circuits: {
-        verifyClaim: this.mockVerifyClaim.bind(this),
-        getClaimStatus: this.mockGetClaimStatus.bind(this),
-        getClaimVerificationHash: this.mockGetClaimVerificationHash.bind(this),
-      },
-      impureCircuits: {
-        verifyClaim: this.mockVerifyClaim.bind(this),
-        getClaimStatus: this.mockGetClaimStatus.bind(this),
-        getClaimVerificationHash: this.mockGetClaimVerificationHash.bind(this),
-      },
-      initialState: this.mockInitialState.bind(this),
-    };
+  private constructor() {
+    this.contract = new Contract<ClaimPrivateState>(claimWitnesses);
 
-    const privateState = createClaimPrivateState(params);
+    const privateState = createSampleClaimPrivateState();
     const {
       currentPrivateState,
       currentContractState,
       currentZswapLocalState,
     } = this.contract.initialState(
-      constructorContext(privateState, "0".repeat(64)),
+      constructorContext(privateState, "0".repeat(64))
     );
 
     this.circuitContext = {
@@ -112,31 +77,18 @@ export class ClaimVerifierSimulator {
       originalState: currentContractState,
       transactionContext: new QueryContext(
         currentContractState.data,
-        sampleContractAddress(),
+        sampleContractAddress()
       ),
     };
   }
 
-  static async create(params?: {
-    authorizedProviders?: Map<string, Set<number>>;
-    eligiblePatients?: Set<string>;
-    maxClaimAmounts?: Map<number, bigint>;
-    minServiceDate?: bigint;
-    maxServiceDate?: bigint;
-  }): Promise<ClaimVerifierSimulator> {
+  static async create(): Promise<ClaimVerifierSimulator> {
     await initClaimWitnesses();
-    
-    // Use sample data if no params provided
-    const sampleState = createSampleClaimPrivateState();
-    const finalParams = {
-      authorizedProviders: params?.authorizedProviders ?? sampleState.authorizedProviders,
-      eligiblePatients: params?.eligiblePatients ?? sampleState.eligiblePatients,
-      maxClaimAmounts: params?.maxClaimAmounts ?? sampleState.maxClaimAmounts,
-      minServiceDate: params?.minServiceDate ?? sampleState.minServiceDate,
-      maxServiceDate: params?.maxServiceDate ?? sampleState.maxServiceDate,
-    };
-    
-    return new ClaimVerifierSimulator(finalParams);
+    return new ClaimVerifierSimulator();
+  }
+
+  public getLedger(): Ledger {
+    return ledger(this.circuitContext.transactionContext.state);
   }
 
   public getPrivateState(): ClaimPrivateState {
@@ -239,11 +191,12 @@ export class ClaimVerifierSimulator {
       );
 
       // 4. Verify provider authorization
-      const [____, providerValid] = claimWitnesses.VERIFY_PROVIDER_AUTHORIZATION(
-        witnessContext,
-        providerId,
-        claimType
-      );
+      const [____, providerValid] =
+        claimWitnesses.VERIFY_PROVIDER_AUTHORIZATION(
+          witnessContext,
+          providerId,
+          claimType
+        );
 
       // 5. Verify patient eligibility
       const [_____, patientValid] = claimWitnesses.VERIFY_PATIENT_ELIGIBILITY(
@@ -253,8 +206,8 @@ export class ClaimVerifierSimulator {
       );
 
       // All validations must pass
-      isValid = sigValid && amountValid && dateValid && providerValid && patientValid;
-
+      isValid =
+        sigValid && amountValid && dateValid && providerValid && patientValid;
     } catch (error) {
       console.error("Error verifying claim:", error);
       isValid = false;
@@ -265,7 +218,11 @@ export class ClaimVerifierSimulator {
     this.claimStatuses.set(claimId, status);
 
     // Generate verification hash
-    const verificationHash = this.generateVerificationHash(claimId, claim, isValid);
+    const verificationHash = this.generateVerificationHash(
+      claimId,
+      claim,
+      isValid
+    );
     this.verificationHashes.set(claimId, verificationHash);
 
     return {
@@ -321,43 +278,32 @@ export class ClaimVerifierSimulator {
     return { total, approved, rejected, pending };
   }
 
-  private generateVerificationHash(claimId: bigint, claim: Claim, isValid: boolean): string {
+  private generateVerificationHash(
+    claimId: bigint,
+    claim: Claim,
+    isValid: boolean
+  ): string {
     // Simple hash generation for demo purposes
     const data = `${claimId}-${claim.claimType}-${claim.amount}-${isValid}-${Date.now()}`;
     return "0x" + Buffer.from(data).toString("hex").padStart(64, "0");
   }
 
-  // Mock contract methods
-  private mockVerifyClaim(context: CircuitContext<ClaimPrivateState>, claim: Claim) {
-    // This would normally call the actual contract circuit
+  // State persistence methods
+  public getState(): any {
     return {
-      result: true,
-      context,
-      proofData: {},
+      claimCounter: this.claimCounter,
+      claims: Array.from(this.claims.entries()),
+      claimStatuses: Array.from(this.claimStatuses.entries()),
+      verificationHashes: Array.from(this.verificationHashes.entries()),
     };
   }
 
-  private mockGetClaimStatus(context: CircuitContext<ClaimPrivateState>, claimId: bigint) {
-    return {
-      result: this.getClaimStatus(claimId),
-      context,
-      proofData: {},
-    };
-  }
-
-  private mockGetClaimVerificationHash(context: CircuitContext<ClaimPrivateState>, claimId: bigint) {
-    return {
-      result: this.getClaimVerificationHash(claimId),
-      context,
-      proofData: {},
-    };
-  }
-
-  private mockInitialState(context: any) {
-    return {
-      currentContractState: {},
-      currentPrivateState: this.circuitContext.currentPrivateState,
-      currentZswapLocalState: {},
-    };
+  public restoreState(state: any): void {
+    if (state) {
+      this.claimCounter = BigInt(state.claimCounter || 0);
+      this.claims = new Map(state.claims || []);
+      this.claimStatuses = new Map(state.claimStatuses || []);
+      this.verificationHashes = new Map(state.verificationHashes || []);
+    }
   }
 }

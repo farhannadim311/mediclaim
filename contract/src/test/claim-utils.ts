@@ -30,18 +30,19 @@ export function buildClaimVerificationMessage(
   providerId: Uint8Array,
   patientId: Uint8Array,
   amount: bigint,
-  serviceDate: bigint,
+  serviceDate: bigint
 ) {
   // Pre-computed hash for "claim:v1:verification" to match claim verification
-  const tag = "0x2a8b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b";
-  
+  const tag =
+    "0x2a8b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b";
+
   const messageArray = [
-    F.e(tag), 
-    F.e(u8To0xHex(claimHash)), 
-    F.e(u8To0xHex(providerId)), 
-    F.e(u8To0xHex(patientId)), 
-    F.e(amount), 
-    F.e(serviceDate)
+    F.e(tag),
+    F.e(u8To0xHex(claimHash)),
+    F.e(u8To0xHex(providerId)),
+    F.e(u8To0xHex(patientId)),
+    F.e(amount),
+    F.e(serviceDate),
   ];
   return messageArray;
 }
@@ -74,16 +75,16 @@ export async function signClaimVerification(params: {
     params.amount,
     params.serviceDate
   );
-  
+
   // Hash the message array to get a single field element for signing
   const msg = eddsa.poseidon(msgArray);
   const sig = eddsa.signPoseidon(sk, msg);
 
   const R8x = hexToBytes32(
-    "0x" + F.toObject(sig.R8[0]).toString(16).padStart(64, "0"),
+    "0x" + F.toObject(sig.R8[0]).toString(16).padStart(64, "0")
   );
   const R8y = hexToBytes32(
-    "0x" + F.toObject(sig.R8[1]).toString(16).padStart(64, "0"),
+    "0x" + F.toObject(sig.R8[1]).toString(16).padStart(64, "0")
   );
   const S = hexToBytes32("0x" + BigInt(sig.S).toString(16).padStart(64, "0"));
 
@@ -110,7 +111,7 @@ export function generateClaimHash(claimData: {
     description: claimData.description,
     metadata: claimData.metadata,
   });
-  
+
   const hash = new TextEncoder().encode(data);
   const result = new Uint8Array(32);
   result.set(hash.slice(0, 32));
@@ -129,7 +130,7 @@ export function stringToBytes32(str: string): Uint8Array {
 // Convert bytes back to string (for provider/patient IDs)
 export function bytes32ToString(bytes: Uint8Array): string {
   const decoder = new TextDecoder();
-  return decoder.decode(bytes).replace(/\0/g, '');
+  return decoder.decode(bytes).replace(/\0/g, "");
 }
 
 // Validate claim amount against policy limits
@@ -150,9 +151,11 @@ export function validateServiceDate(
   maxDate: bigint,
   currentTimestamp: bigint
 ): boolean {
-  return serviceDate >= minDate && 
-         serviceDate <= maxDate && 
-         serviceDate <= currentTimestamp;
+  return (
+    serviceDate >= minDate &&
+    serviceDate <= maxDate &&
+    serviceDate <= currentTimestamp
+  );
 }
 
 // Check if provider is authorized for claim type
@@ -175,21 +178,23 @@ export function validatePatientEligibility(
 }
 
 // Generate sample claim data for testing
-export function generateSampleClaim(overrides: Partial<{
-  claimType: number;
-  amount: bigint;
-  serviceDate: bigint;
-  providerId: string;
-  patientId: string;
-  description: string;
-  metadata: string;
-}> = {}) {
+export function generateSampleClaim(
+  overrides: Partial<{
+    claimType: number;
+    amount: bigint;
+    serviceDate: bigint;
+    providerId: string;
+    patientId: string;
+    description: string;
+    metadata: string;
+  }> = {}
+) {
   const now = BigInt(Math.floor(Date.now() / 1000));
-  
+
   return {
     claimType: overrides.claimType ?? 0, // MEDICAL_INVOICE
     amount: overrides.amount ?? 50000n, // $500
-    serviceDate: overrides.serviceDate ?? (now - 86400n), // 1 day ago
+    serviceDate: overrides.serviceDate ?? now - 86400n, // 1 day ago
     providerId: stringToBytes32(overrides.providerId ?? "HOSPITAL_001"),
     patientId: stringToBytes32(overrides.patientId ?? "PATIENT_001"),
     description: overrides.description ?? "Sample medical claim",
@@ -213,22 +218,24 @@ export function generateSampleSignature(): {
 }
 
 // Complete sample claim with signature for testing
-export function generateCompleteSampleClaim(overrides: Partial<{
-  claimType: number;
-  amount: bigint;
-  serviceDate: bigint;
-  providerId: string;
-  patientId: string;
-  description: string;
-  metadata: string;
-}> = {}) {
+export function generateCompleteSampleClaim(
+  overrides: Partial<{
+    claimType: number;
+    amount: bigint;
+    serviceDate: bigint;
+    providerId: string;
+    patientId: string;
+    description: string;
+    metadata: string;
+  }> = {}
+) {
   const claimData = generateSampleClaim(overrides);
   const signatureData = generateSampleSignature();
   const claimHash = generateClaimHash(claimData);
-  
+
   return {
     ...claimData,
-    claimHash,
     ...signatureData,
+    claimHash, // Override with the correct hash
   };
 }

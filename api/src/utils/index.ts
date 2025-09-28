@@ -16,16 +16,10 @@
 export const DEFAULT_POLICY_MAX = 1000 as const;
 
 export const POLICY_IDS = {
-  BASIC_1000: "POLICY-BASIC-1000",
+  BASIC_1000: 'POLICY-BASIC-1000',
 } as const;
 
-export const PUBLIC_INPUT_KEYS = [
-  "claimId",
-  "commitmentHash",
-  "timestamp",
-  "policyId",
-  "policyMax",
-] as const;
+export const PUBLIC_INPUT_KEYS = ['claimId', 'commitmentHash', 'timestamp', 'policyId', 'policyMax'] as const;
 
 // ---------------------------
 // Types
@@ -65,7 +59,7 @@ export interface ProofPayload {
 export interface VerifyResponse {
   valid: boolean;
   txHash?: string | null;
-  attestation?: { source: "api" | "midnight" | "ethereum" };
+  attestation?: { source: 'api' | 'midnight' | 'ethereum' };
 }
 
 // ---------------------------
@@ -76,7 +70,7 @@ export interface VerifyResponse {
 const hasWebCrypto = (): boolean => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return typeof (globalThis as any).crypto?.getRandomValues === "function";
+    return typeof (globalThis as any).crypto?.getRandomValues === 'function';
   } catch {
     return false;
   }
@@ -97,15 +91,15 @@ export const randomBytes = (length: number): Uint8Array => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore: node:crypto available in Node environments only
-  const nodeCrypto: typeof import("node:crypto") = /* @__PURE__ */ (function () {
+  const nodeCrypto: typeof import('node:crypto') = /* @__PURE__ */ (function () {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      return require("node:crypto");
+      return require('node:crypto');
     } catch {
       // Last resort for strict ESM bundlers; will only work in Node.
       // Use Function constructor instead of eval for better security
       const requireFn = new Function('module', 'return require(module)');
-      return requireFn("node:crypto");
+      return requireFn('node:crypto');
     }
   })();
   return nodeCrypto.randomFillSync(bytes);
@@ -122,9 +116,7 @@ export const randomBytes = (length: number): Uint8Array => {
  * - remove empty entries
  */
 export const normalizeServiceCodes = (codes: string[]): string[] =>
-  codes
-    .map((c) => c.trim().toUpperCase())
-    .filter((c) => c.length > 0);
+  codes.map((c) => c.trim().toUpperCase()).filter((c) => c.length > 0);
 
 /**
  * Encode a service code (alphanumeric up to ~8 chars) to a bigint using base36 packing.
@@ -149,8 +141,7 @@ export const encodeServiceCode = (code: string): bigint => {
 /**
  * Encode a list of service codes to field elements.
  */
-export const encodeServiceCodes = (codes: string[]): bigint[] =>
-  normalizeServiceCodes(codes).map(encodeServiceCode);
+export const encodeServiceCodes = (codes: string[]): bigint[] => normalizeServiceCodes(codes).map(encodeServiceCode);
 
 /**
  * Normalizes inputs to a field element (bigint).
@@ -160,18 +151,18 @@ export const encodeServiceCodes = (codes: string[]): bigint[] =>
  * - Uint8Array => bigint (big-endian)
  */
 export const toField = (input: string | number | bigint | Uint8Array): bigint => {
-  if (typeof input === "bigint") return input;
+  if (typeof input === 'bigint') return input;
 
-  if (typeof input === "number") {
+  if (typeof input === 'number') {
     if (!Number.isSafeInteger(input)) {
-      throw new Error("Number not a safe integer for field conversion");
+      throw new Error('Number not a safe integer for field conversion');
     }
     return BigInt(input);
   }
 
-  if (typeof input === "string") {
+  if (typeof input === 'string') {
     const s = input.trim();
-    if (s.startsWith("0x") || s.startsWith("0X")) {
+    if (s.startsWith('0x') || s.startsWith('0X')) {
       return hexToBigInt(s);
     }
     // decimal string
@@ -188,14 +179,14 @@ export const toField = (input: string | number | bigint | Uint8Array): bigint =>
 };
 
 export const hexToBigInt = (hex: string): bigint => {
-  const s = hex.startsWith("0x") || hex.startsWith("0X") ? hex.slice(2) : hex;
+  const s = hex.startsWith('0x') || hex.startsWith('0X') ? hex.slice(2) : hex;
   if (!/^[0-9a-fA-F]*$/.test(s)) throw new Error(`Invalid hex: ${hex}`);
-  return BigInt("0x" + s);
+  return BigInt('0x' + s);
 };
 
 export const bigIntToHex = (x: bigint): string => {
   const h = x.toString(16);
-  return "0x" + (h.length % 2 ? "0" + h : h);
+  return '0x' + (h.length % 2 ? '0' + h : h);
 };
 
 // ---------------------------
@@ -227,9 +218,7 @@ export const setPoseidonHasher = (impl: PoseidonLike): void => {
  */
 export const computeCommitment = async (priv: ClaimPrivate): Promise<string> => {
   if (!poseidonImpl) {
-    throw new Error(
-      "Poseidon hasher not set. Call setPoseidonHasher(...) during bootstrap (prover init)."
-    );
+    throw new Error('Poseidon hasher not set. Call setPoseidonHasher(...) during bootstrap (prover init).');
   }
   const inputs: bigint[] = [];
   inputs.push(toField(priv.patientId));
@@ -238,7 +227,7 @@ export const computeCommitment = async (priv: ClaimPrivate): Promise<string> => 
   inputs.push(toField(priv.invoiceAmount));
 
   const out = await poseidonImpl.hash(inputs);
-  const outBig = typeof out === "bigint" ? out : BigInt(String(out));
+  const outBig = typeof out === 'bigint' ? out : BigInt(String(out));
   return bigIntToHex(outBig);
 };
 
@@ -246,19 +235,15 @@ export const computeCommitment = async (priv: ClaimPrivate): Promise<string> => 
 // Public inputs composition
 // ---------------------------
 
-export const publicInputsFromClaim = (
-  claim: ClaimPublic,
-  commitmentHash: string,
-  policyMax: number
-): PublicInputs => {
+export const publicInputsFromClaim = (claim: ClaimPublic, commitmentHash: string, policyMax: number): PublicInputs => {
   if (!Number.isFinite(policyMax) || policyMax <= 0) {
-    throw new Error("policyMax must be a positive number");
+    throw new Error('policyMax must be a positive number');
   }
   if (!/^0x[0-9a-fA-F]+$/.test(commitmentHash)) {
-    throw new Error("commitmentHash must be 0x-hex");
+    throw new Error('commitmentHash must be 0x-hex');
   }
   if (!Number.isFinite(claim.timestamp) || claim.timestamp <= 0) {
-    throw new Error("timestamp must be positive number");
+    throw new Error('timestamp must be positive number');
   }
   return {
     claimId: claim.claimId,
@@ -274,21 +259,21 @@ export const publicInputsFromClaim = (
 // ---------------------------
 
 /** Keys that are considered PHI/secret and must never leave client context. */
-const PHI_KEYS = new Set(["patientId", "providerId", "serviceCodes", "invoiceAmount"]);
+const PHI_KEYS = new Set(['patientId', 'providerId', 'serviceCodes', 'invoiceAmount']);
 
 /**
  * Throws if any PHI-like keys are present in a payload destined for backend/contract.
  * Use this at the boundary (e.g., start of POST /verify-proof).
  */
 export const assertNoPHI = (obj: unknown): void => {
-  if (obj == null || typeof obj !== "object") return;
+  if (obj == null || typeof obj !== 'object') return;
 
   const stack: unknown[] = [obj];
   const seen = new Set<unknown>();
 
   while (stack.length) {
     const cur = stack.pop();
-    if (!cur || typeof cur !== "object" || Array.isArray(cur)) continue;
+    if (!cur || typeof cur !== 'object' || Array.isArray(cur)) continue;
     if (seen.has(cur)) continue;
     seen.add(cur);
 
@@ -297,7 +282,7 @@ export const assertNoPHI = (obj: unknown): void => {
       if (PHI_KEYS.has(k)) {
         throw new Error(`PHI key detected in payload: ${k}`);
       }
-      if (v && typeof v === "object" && !Array.isArray(v)) {
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
         stack.push(v as Record<string, unknown>);
       }
     }
@@ -307,17 +292,17 @@ export const assertNoPHI = (obj: unknown): void => {
 /**
  * Log only whitelisted public keys; redact everything else.
  */
-export const safeLogPublic = (obj: unknown, prefix = "[public]"): void => {
+export const safeLogPublic = (obj: unknown, prefix = '[public]'): void => {
   const allow = new Set(PUBLIC_INPUT_KEYS as readonly string[]);
   const out: Record<string, unknown> = {};
 
-  if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
     const record = obj as Record<string, unknown>;
     for (const [k, v] of Object.entries(record)) {
-      out[k] = allow.has(k) ? v : "[REDACTED]";
+      out[k] = allow.has(k) ? v : '[REDACTED]';
     }
   } else {
-    out.message = "[non-object payload]";
+    out.message = '[non-object payload]';
   }
   // eslint-disable-next-line no-console
   console.log(prefix, out);
@@ -328,42 +313,42 @@ export const safeLogPublic = (obj: unknown, prefix = "[public]"): void => {
 // ---------------------------
 
 export const isPublicInputs = (p: unknown): p is PublicInputs => {
-  if (!p || typeof p !== "object") return false;
+  if (!p || typeof p !== 'object') return false;
   const o = p as Record<string, unknown>;
   return (
-    typeof o.claimId === "string" &&
-    typeof o.commitmentHash === "string" &&
-    typeof o.timestamp === "number" &&
-    typeof o.policyId === "string" &&
-    typeof o.policyMax === "number"
+    typeof o.claimId === 'string' &&
+    typeof o.commitmentHash === 'string' &&
+    typeof o.timestamp === 'number' &&
+    typeof o.policyId === 'string' &&
+    typeof o.policyMax === 'number'
   );
 };
 
 export const validatePublicInputs = (p: unknown): asserts p is PublicInputs => {
-  if (!isPublicInputs(p)) throw new Error("Invalid PublicInputs");
+  if (!isPublicInputs(p)) throw new Error('Invalid PublicInputs');
 
   const pi = p as PublicInputs;
 
   if (!/^0x[0-9a-fA-F]+$/.test(pi.commitmentHash)) {
-    throw new Error("commitmentHash must be 0x-hex");
+    throw new Error('commitmentHash must be 0x-hex');
   }
   if (!Number.isFinite(pi.timestamp) || pi.timestamp <= 0) {
-    throw new Error("timestamp must be positive number");
+    throw new Error('timestamp must be positive number');
   }
   if (!Number.isFinite(pi.policyMax) || pi.policyMax <= 0) {
-    throw new Error("policyMax must be positive number");
+    throw new Error('policyMax must be positive number');
   }
 };
 
 export const isProofPayload = (x: unknown): x is ProofPayload => {
-  if (!x || typeof x !== "object") return false;
+  if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return isPublicInputs(o.publicInputs) && "proof" in o;
+  return isPublicInputs(o.publicInputs) && 'proof' in o;
 };
 
 export const validateProofPayload = (payload: unknown): asserts payload is ProofPayload => {
-  if (!payload || typeof payload !== "object") {
-    throw new Error("Payload must be an object");
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Payload must be an object');
   }
 
   // Narrow the shape so TS knows publicInputs/proof may exist
@@ -371,13 +356,60 @@ export const validateProofPayload = (payload: unknown): asserts payload is Proof
 
   // Validate public inputs
   if (!isPublicInputs(o.publicInputs)) {
-    throw new Error("Invalid public inputs");
+    throw new Error('Invalid public inputs');
   }
-  
+
   if (o.proof === undefined) {
-    throw new Error("Missing proof");
+    throw new Error('Missing proof');
   }
   // intentionally do not validate proof shape here; snarkjs will.
+};
+
+// ---------------------------
+// Contract-specific utilities
+// ---------------------------
+
+/**
+ * Convert string to 32-byte Uint8Array (for contract compatibility)
+ */
+export const stringToBytes32 = (str: string): Uint8Array => {
+  const bytes = new TextEncoder().encode(str);
+  const padded = new Uint8Array(32);
+  padded.set(bytes.slice(0, 32));
+  return padded;
+};
+
+/**
+ * Convert string to 64-byte Uint8Array (for contract compatibility)
+ */
+export const stringToBytes64 = (str: string): Uint8Array => {
+  const bytes = new TextEncoder().encode(str);
+  const padded = new Uint8Array(64);
+  padded.set(bytes.slice(0, 64));
+  return padded;
+};
+
+export const bytesToHex = (bytes: Uint8Array): string => '0x' + Buffer.from(bytes).toString('hex');
+
+export const bytesToString = (bytes: Uint8Array): string => new TextDecoder().decode(bytes).replace(/\0+$/u, '');
+
+/**
+ * Hash claim data for verification
+ */
+export const hashClaim = (claim: any): string => {
+  // Simple hash implementation for demo
+  // In production, this should use Poseidon or similar
+
+  // Convert BigInt values to strings for JSON serialization
+  const serializableClaim = {
+    ...claim,
+    amount: claim.amount?.toString() || '0',
+    serviceDate: claim.serviceDate?.toString() || '0',
+  };
+
+  const data = JSON.stringify(serializableClaim);
+  const hash = Buffer.from(data).toString('hex');
+  return '0x' + hash.slice(0, 64).padStart(64, '0');
 };
 
 // ---------------------------
